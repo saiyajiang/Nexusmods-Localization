@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Nexusmods Localization
-// @name:zh-CN   Nexus Mods 多语言本地化
+// @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.2
+// @version      0.1.3
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
-// @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持 Excel 自定义翻译
+// @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       Nexusmods-Localization Contributors
 // @license      MIT
 // @homepageURL  https://github.com/saiyajiang/Nexusmods-Localization
@@ -252,6 +252,13 @@
     'uncapped download speeds': '不限速下载',
     'browse ad-free': '无广告浏览',
     'Start free trial': '开始免费试用',
+    // Premium 广告区完整句子（碎片 span 合并后匹配）
+    'Try Premium for free to auto-install collections, get uncapped download speeds and browse ad-free.': '免费试用高级会员以自动安装合集、不限速下载和无广告浏览。',
+    'Get fast downloads with Premium': '使用高级会员快速下载',
+    'Use Premium for fast downloads': '使用高级会员快速下载',
+    // 已部分翻译的碎片合并文本（延迟调用/MutationObserver 时部分已翻译）
+    '免费试用高级会员 to 自动安装合集, get 不限速下载 and 无广告浏览.': '免费试用高级会员以自动安装合集、不限速下载和无广告浏览。',
+    '使用快速下载 高级会员': '使用高级会员快速下载',
     'Make mods.': '制作模组。',
     'Earn rewards.': '获得奖励。',
     'Cash payouts': '现金奖励',
@@ -269,6 +276,12 @@
     'Unban requests': '解封申请',
     'DMCA': 'DMCA',
     'Manage cookie settings': '管理 Cookie 设置',
+    'Follow us on Twitter': '在 Twitter 上关注我们',
+    'Follow us on TikTok': '在 TikTok 上关注我们',
+    'Follow us on Twitch': '在 Twitch 上关注我们',
+    'Follow us on Youtube': '在 YouTube 上关注我们',
+    'Follow us on Instagram': '在 Instagram 上关注我们',
+    'Join us on Discord': '加入我们的 Discord',
     'Discord': 'Discord',
     'Support authors': '支持作者',
     'Contact us': '联系我们',
@@ -310,6 +323,7 @@
     'Mod Organizer 2 Plugins': 'MO2 插件',
     'Dress for Fem V': '女性V服装',
     'For FemV': '女性V',
+    'Adult': '成人',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -561,6 +575,95 @@
       this._processed.add(node);
     }
 
+    /**
+     * 翻译内联碎片元素（如 <p> 内多个 <span> 拆分文本）
+     * 核心问题：Nexus Mods 用 <span> 拆分同一段落为多个文本节点，
+     * 例如 "Try Premium to auto-install collections, get ... and ..."
+     * 被拆成：["Try Premium to ", "auto-install collections", ", get ", "uncapped ...", "and ", "browse ad-free", "."]
+     * 逐节点翻译会导致 "to", "get", "and" 等碎片词无法正确翻译。
+     *
+     * 解决方案：合并父元素内所有文本 → 整句翻译 → 将译文拆回各节点
+     */
+    _translateInlineFragments(parentEl) {
+      if (this._processed.has(parentEl)) return;
+      this._processed.add(parentEl);
+
+      // 收集所有内联子元素（span, a, strong, em 等）中的文本节点
+      const children = [];
+      const textNodes = [];
+      const walk = document.createTreeWalker(parentEl, NodeFilter.SHOW_TEXT);
+      let tn;
+      while ((tn = walk.nextNode())) {
+        if (this._processed.has(tn)) continue;
+        children.push(tn);
+        textNodes.push(tn.nodeValue);
+      }
+
+      if (textNodes.length < 2) return; // 单个节点不需要合并
+
+      // 合并所有文本节点的内容
+      const mergedOriginal = textNodes.join('');
+      const mergedKey = mergedOriginal.replace(/\s+/g, ' ').trim();
+
+      if (!mergedKey || mergedKey.length < 2) return;
+
+      // 尝试翻译合并后的文本
+      let translated = null;
+
+      // 1. 字典匹配
+      if (mergedKey in this.dict) {
+        translated = this.dict[mergedKey];
+      }
+
+      // 2. 正则匹配
+      if (translated === null) {
+        for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
+          const m = mergedKey.match(pattern);
+          if (m) {
+            translated = replacer(m);
+            break;
+          }
+        }
+      }
+
+      if (!translated || translated === mergedKey) return;
+
+      // 翻译成功，需要将译文分配回各文本节点
+      // 策略：按原始文本节点长度比例分配译文
+      // 但更可靠的做法是：如果只有一个节点包含大部分文字，整体替换
+      // 简化方案：清空前面所有节点，把完整译文放到最后一个节点
+      // 但这会丢失 span 的样式，所以用更好的方案：
+      // 保留各节点空白，将翻译文本直接替换
+
+      // 最简方案：将合并后的译文放入第一个非空节点，清空其他节点
+      // 这在视觉上是正确的，因为它们在同一个 <p> 或 <h3> 内
+      let firstNonEmpty = -1;
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].nodeValue.trim()) {
+          firstNonEmpty = i;
+          break;
+        }
+      }
+      if (firstNonEmpty < 0) return;
+
+      // 保留首尾空白
+      const firstNode = children[firstNonEmpty];
+      const leading = firstNode.nodeValue.match(/^\s*/)[0];
+      const lastNode = children[children.length - 1];
+      const trailing = lastNode.nodeValue.match(/\s*$/)[0];
+
+      // 清空所有节点
+      for (let i = 0; i < children.length; i++) {
+        if (i === firstNonEmpty) continue;
+        children[i].nodeValue = '';
+        this._processed.add(children[i]);
+      }
+
+      // 将译文放入第一个非空节点
+      firstNode.nodeValue = leading + translated + trailing;
+      this._processed.add(firstNode);
+    }
+
     /** 翻译元素属性 */
     _translateAttributes(el) {
       for (const attr of TRANSLATABLE_ATTRS) {
@@ -578,7 +681,24 @@
       if (!root) return;
       if (this._isIgnored(root)) return;
 
-      // 遍历所有文本节点
+      // 第一步：合并翻译内联碎片元素（p, h3 等包含多个 span 的元素）
+      const inlineParents = root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, label, figcaption, blockquote');
+      for (const p of inlineParents) {
+        if (this._isIgnored(p)) continue;
+        // 检查是否有多个内联子元素（span/a/strong 等）
+        const inlineChildren = p.querySelectorAll('span, a, strong, em, b, i, mark, small, sub, sup');
+        if (inlineChildren.length >= 2) {
+          // 检查是否包含多个文本节点
+          let textCount = 0;
+          const tw = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+          while (tw.nextNode()) textCount++;
+          if (textCount >= 2) {
+            this._translateInlineFragments(p);
+          }
+        }
+      }
+
+      // 第二步：逐文本节点翻译（处理剩余未被碎片合并覆盖的节点）
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       let node;
       while ((node = walker.nextNode())) {

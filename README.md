@@ -1,6 +1,6 @@
 # Nexusmods-Localization
 
-> 为 [Nexus Mods](https://www.nexusmods.com/) 网站提供多语言界面本地化的油猴脚本。  
+> 为 [Nexus Mods](https://www.nexusmods.com/) 网站提供界面本地化的油猴脚本。  
 > 内置简体中文，支持通过标准接口添加任意语言包。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -16,7 +16,7 @@
 - **动态页面支持**：通过 `MutationObserver` 实时翻译异步加载内容
 - **Shadow DOM 支持**：拦截 `attachShadow`，覆盖 Web Components 内的文本
 - **SPA 路由感知**：Hook `history.pushState`，切换页面后自动重载对应词典
-- **多语言切换**：油猴菜单一键切换，设置持久保存
+- **语言切换**：油猴菜单一键切换，设置持久保存
 - **开放接口**：第三方可注入自定义语言包，无需修改本脚本
 
 ---

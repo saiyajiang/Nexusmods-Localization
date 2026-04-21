@@ -124,6 +124,9 @@
       'Download file': '下载文件',
       'Download history': '下载历史',
       'Total downloads': '总下载量',
+      'Try Premium for free to auto-install collections, get uncapped download speeds and browse ad-free.': '免费试用高级会员以自动安装合集、不限速下载和无广告浏览。',
+      'Get fast downloads with Premium': '使用高级会员快速下载',
+      'Use Premium for fast downloads': '使用高级会员快速下载',
 
       // === 上传 ===
       'Upload': '上传',
@@ -276,6 +279,15 @@
       'Safe to use': '安全使用',
       'Totally free': '完全免费',
       'Community-driven': '社区驱动',
+      'Follow us on Twitter': '在 Twitter 上关注我们',
+      'Follow us on TikTok': '在 TikTok 上关注我们',
+      'Follow us on Twitch': '在 Twitch 上关注我们',
+      'Follow us on Youtube': '在 YouTube 上关注我们',
+      'Follow us on Instagram': '在 Instagram 上关注我们',
+      'Join us on Discord': '加入我们的 Discord',
+      'Try Premium for free to auto-install collections, get uncapped download speeds and browse ad-free.': '免费试用高级会员以自动安装合集、不限速下载和无广告浏览。',
+      'Get fast downloads with Premium': '使用高级会员快速下载',
+      'Use Premium for fast downloads': '使用高级会员快速下载',
     },
 
     // ──────────────────────────────────────────
