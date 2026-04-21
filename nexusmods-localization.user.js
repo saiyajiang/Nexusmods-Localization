@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 多语言本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      1.0.0
+// @version      1.1.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports custom language packs via the NexusLocales interface.
 // @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持自定义语言包接口
 // @author       Nexusmods-Localization Contributors
@@ -53,10 +53,6 @@
   (function (global) {
     'use strict';
 
-    // ─────────────────────────────────────────────
-    //  常量 & 默认配置
-    // ─────────────────────────────────────────────
-
     const DEFAULT_CONFIG = {
       lang: 'zh-CN',
       maxTextLength: 400,
@@ -66,21 +62,10 @@
         '.collection_description',
         '.changelog',
         '[data-no-i18n]',
+        'script', 'style', 'textarea', 'input',
       ],
       translatableAttrs: ['placeholder', 'title', 'aria-label', 'data-tooltip'],
     };
-
-    // ─────────────────────────────────────────────
-    //  工具函数
-    // ─────────────────────────────────────────────
-
-    function throttle(fn, wait) {
-      let timer = null;
-      return function (...args) {
-        if (timer) return;
-        timer = setTimeout(() => { fn.apply(this, args); timer = null; }, wait);
-      };
-    }
 
     function debounce(fn, wait) {
       let timer = null;
@@ -96,10 +81,17 @@
 
     // ─────────────────────────────────────────────
     //  路由检测
+    //  Nexus Mods 实际 URL 格式：
+    //    首页:          /
+    //    游戏主页:      /skyrim  或  /games/skyrim
+    //    模组列表:      /skyrim/mods  或  /games/skyrim/mods
+    //    模组详情:      /skyrim/mods/1234  或  /games/skyrim/mods/1234
+    //    合集详情:      /skyrim/collections/567  或  /games/skyrim/collections/567
+    //    用户主页:      /users/1234
     // ─────────────────────────────────────────────
 
     function detectPageType(routes) {
-      const path = location.pathname + location.search;
+      const path = location.pathname;
       for (const [pattern, type] of routes) {
         const re = pattern instanceof RegExp ? pattern : new RegExp(pattern);
         if (re.test(path)) return type;
@@ -118,6 +110,7 @@
         this._cache = new Map();
         this._processedNodes = new WeakSet();
         this._dict = null;
+        this._reverseDict = null;  // 反向字典：中文→英文（用于路由切换时还原）
         this._regexpRules = [];
       }
 
@@ -128,6 +121,14 @@
         this._cache.clear();
         this._processedNodes = new WeakSet();
         this._regexpRules = (this.locale._regexpRules || []).filter(r => !r._dateOnly);
+
+        // 构建反向字典
+        this._reverseDict = Object.create(null);
+        for (const [en, zh] of Object.entries(this._dict)) {
+          if (zh && typeof zh === 'string') {
+            this._reverseDict[normalize(zh)] = en;
+          }
+        }
       }
 
       translate(text) {
@@ -146,6 +147,13 @@
         }
         this._cache.set(key, result);
         return result;
+      }
+
+      // 反向翻译：中文→英文（路由切换时还原原文）
+      reverseTranslate(text) {
+        const key = normalize(text);
+        if (!key) return null;
+        return this._reverseDict[key] || null;
       }
 
       translateTextNode(node) {
@@ -173,10 +181,13 @@
       _isIgnored(node) {
         const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
         if (!el) return false;
-        return this.config.ignoreSelectors.some(sel => el.closest(sel) !== null);
+        try {
+          return this.config.ignoreSelectors.some(sel => el.closest(sel) !== null);
+        } catch (e) { return false; }
       }
 
       translateSubtree(root) {
+        if (!root) return;
         if (this._isIgnored(root)) return;
         if (root.nodeType === Node.ELEMENT_NODE) {
           this.translateAttributes(root);
@@ -189,9 +200,9 @@
             acceptNode: (node) => {
               if (node.nodeType === Node.ELEMENT_NODE) {
                 const tag = node.tagName.toLowerCase();
-                if (tag === 'script' || tag === 'style') return NodeFilter.FILTER_REJECT;
+                if (tag === 'script' || tag === 'style' || tag === 'textarea') return NodeFilter.FILTER_REJECT;
                 if (this._isIgnored(node)) return NodeFilter.FILTER_REJECT;
-                return NodeFilter.FILTER_SKIP;
+                return NodeFilter.SKIP;
               }
               if (this._isIgnored(node)) return NodeFilter.FILTER_REJECT;
               return NodeFilter.FILTER_ACCEPT;
@@ -215,9 +226,8 @@
     // ─────────────────────────────────────────────
 
     class DOMWatcher {
-      constructor(translator, onLargeChange) {
+      constructor(translator) {
         this.translator = translator;
-        this.onLargeChange = onLargeChange;
         this._observer = null;
         this._pendingNodes = new Set();
         this._flushScheduled = false;
@@ -237,10 +247,6 @@
       }
 
       _onMutations(mutations) {
-        let totalNodes = 0;
-        for (const m of mutations) totalNodes += m.addedNodes.length;
-        if (totalNodes >= 20) { this.onLargeChange(); return; }
-
         for (const m of mutations) {
           if (m.type === 'childList') {
             for (const node of m.addedNodes) {
@@ -293,15 +299,34 @@
 
     // ─────────────────────────────────────────────
     //  SPA 路由监听
+    //  同时覆盖 pushState/replaceState/popstate
+    //  和 URL 变化轮询（兼容 Next.js 等框架的全页跳转）
     // ─────────────────────────────────────────────
 
     function watchRouteChanges(onRouteChange) {
+      const debouncedChange = debounce(onRouteChange, 300);
+
+      // 拦截 pushState / replaceState
       const _pushState = history.pushState;
       const _replaceState = history.replaceState;
-      const debouncedChange = debounce(onRouteChange, 500);
-      history.pushState = function (...args) { _pushState.apply(this, args); debouncedChange(); };
-      history.replaceState = function (...args) { _replaceState.apply(this, args); debouncedChange(); };
+      history.pushState = function (...args) {
+        _pushState.apply(this, args);
+        debouncedChange();
+      };
+      history.replaceState = function (...args) {
+        _replaceState.apply(this, args);
+        debouncedChange();
+      };
       window.addEventListener('popstate', debouncedChange);
+
+      // URL 变化轮询兜底（应对 Next.js 等全页导航）
+      let _lastUrl = location.href;
+      setInterval(() => {
+        if (location.href !== _lastUrl) {
+          _lastUrl = location.href;
+          debouncedChange();
+        }
+      }, 500);
     }
 
     // ─────────────────────────────────────────────
@@ -314,6 +339,7 @@
         this.translator = null;
         this.watcher = null;
         this._currentPageType = null;
+        this._locale = null;
       }
 
       init(locale) {
@@ -321,27 +347,38 @@
           console.warn('[NexusLocalization] 语言包未加载，跳过初始化。');
           return;
         }
+        this._locale = locale;
         this.translator = new Translator(this.config, locale);
-        this.watcher = new DOMWatcher(this.translator, () => this.translatePage());
+        this.watcher = new DOMWatcher(this.translator);
         hookShadowDOM(this.watcher, this.translator);
-        watchRouteChanges(() => this._onRouteChange(locale));
+        watchRouteChanges(() => this._onRouteChange());
+
         if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => this._onReady(locale));
+          document.addEventListener('DOMContentLoaded', () => this._onReady());
         } else {
-          this._onReady(locale);
+          this._onReady();
         }
       }
 
-      _onReady(locale) { this._onRouteChange(locale); this.watcher.start(); }
+      _onReady() {
+        this._onRouteChange();
+        this.watcher.start();
+      }
 
-      _onRouteChange(locale) {
-        const routes = (locale._conf && locale._conf.routes) || [];
+      _onRouteChange() {
+        if (!this._locale) return;
+        const routes = (this._locale._conf && this._locale._conf.routes) || [];
         const pageType = detectPageType(routes);
+
         if (pageType !== this._currentPageType) {
           this._currentPageType = pageType;
           this.translator.setPageType(pageType);
         }
+
+        // 路由切换后延迟翻译，等新内容渲染
         this.translatePage();
+        setTimeout(() => this.translatePage(), 300);
+        setTimeout(() => this.translatePage(), 800);
       }
 
       translatePage() {
@@ -371,7 +408,6 @@
       nov: 11, november: 11, dec: 12, december: 12,
     };
 
-    // 白名单：只有这些容器内的文本才会做日期转换
     const DATE_CONTAINER_SELECTORS = [
       'time', '.stat time', '.uploaded-time', '.last-updated time',
       '.mod-stats time', '[data-date]', '[data-timestamp]',
@@ -381,7 +417,6 @@
     ];
     const DATE_SELECTOR_COMBINED = DATE_CONTAINER_SELECTORS.join(', ');
 
-    // 黑名单：即使祖先命中白名单，这些区域也不处理
     const DATE_IGNORE_SELECTORS = [
       '[data-no-date-i18n]',
       '.mod-title', 'h1.game-name', '.game-title', 'a.mod-name', '.collection-title',
@@ -398,7 +433,6 @@
 
     function convertDateString(text) {
       let m;
-      // "15 Nov 2025" / "15 November 2025, 9:16AM"
       m = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
       if (m) {
         const month = MONTH_MAP[m[2].toLowerCase()];
@@ -408,24 +442,17 @@
         }
         return `${m[3]}-${pad2(month)}-${pad2(parseInt(m[1],10))}`;
       }
-      // "Uploaded at 21:21 03 Nov 2025"
       m = text.match(/^Uploaded at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
       if (m) { const mo = MONTH_MAP[m[4].toLowerCase()]; if (!mo) return null; return `上传于 ${m[5]}-${pad2(mo)}-${pad2(parseInt(m[3],10))} ${m[1]}:${m[2]}`; }
-      // "Updated at 21:21 03 Nov 2025"
       m = text.match(/^Updated at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
       if (m) { const mo = MONTH_MAP[m[4].toLowerCase()]; if (!mo) return null; return `更新于 ${m[5]}-${pad2(mo)}-${pad2(parseInt(m[3],10))} ${m[1]}:${m[2]}`; }
-      // "4 weeks ago"
       m = text.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i);
       if (m) { const u = {second:'秒',minute:'分钟',hour:'小时',day:'天',week:'周',month:'个月',year:'年'}; return `${m[1]} ${u[m[2].toLowerCase()]||m[2]}前`; }
-      // "just now"
       if (/^just now$/i.test(text)) return '刚刚';
-      // "Today at 14:32"
       m = text.match(/^Today at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
       if (m) return `今天 ${pad2(to24Hour(parseInt(m[1],10),(m[3]||'').toLowerCase()))}:${m[2]}`;
-      // "Yesterday at 14:32"
       m = text.match(/^Yesterday at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
       if (m) return `昨天 ${pad2(to24Hour(parseInt(m[1],10),(m[3]||'').toLowerCase()))}:${m[2]}`;
-      // "Time range: 7 Days"
       m = text.match(/^Time range:\s*(\d+)\s*Days?$/i);
       if (m) return `时间范围：${m[1]} 天`;
       return null;
@@ -498,22 +525,38 @@
 
     const zhCN = {
       _conf: {
+        // 路由规则：匹配 Nexus Mods 实际 URL 格式
+        // 游戏页面格式：/{game}/mods/xxx 或 /games/{game}/mods/xxx
         routes: [
+          // 首页
           ['^/$', 'home'],
+          // 模组详情：/skyrim/mods/1234 或 /games/skyrim/mods/1234
           ['/mods/\\d+', 'mod_detail'],
+          // 模组列表：/skyrim/mods 或 /games/skyrim/mods
           ['/mods/?$', 'mod_list'],
-          ['/users/\\d+', 'user_profile'],
+          ['/mods/\\?', 'mod_list'],
+          // 合集详情
           ['/collections/\\d+', 'collection_detail'],
+          // 合集列表
           ['/collections/?$', 'collection_list'],
-          ['/games/\\d+', 'game_detail'],
-          ['/games/?$', 'game_list'],
+          ['/collections/\\?', 'collection_list'],
+          // 用户主页
+          ['/users/\\d+', 'user_profile'],
+          // 游戏详情页（/games/skyrim 格式）
+          ['^/games/[^/]+$', 'game_detail'],
+          // 游戏列表
+          ['^/games/?$', 'game_list'],
+          // 游戏主页（/{game} 格式，如 /skyrim）
+          ['^/[^/]+$', 'game_detail'],
+          // 新闻
           ['/news', 'news'],
+          // 高级会员
           ['/premium', 'premium'],
-          ['/donate', 'donate'],
-          ['/contact', 'contact'],
+          // 搜索
           ['/search', 'search'],
-          ['/modmanager', 'mod_manager'],
+          // 账户
           ['/account', 'account'],
+          // 上传
           ['/uploads', 'upload'],
         ],
       },
@@ -605,6 +648,16 @@
         'Locked': '已锁定', 'Closed': '已关闭', 'Open': '开放',
         'Free': '免费', 'Paid': '付费', 'Featured': '精选',
         'Staff pick': '员工推荐', 'Hot': '热门',
+        // 首页欢迎区域
+        'Welcome back': '欢迎回来', 'Welcome': '欢迎',
+        'Tracking centre': '追踪中心', 'Activity feed': '动态',
+        'Your feed': '你的动态', 'Recommended mods': '推荐模组',
+        'Recently viewed': '最近浏览', 'Favourite games': '收藏游戏',
+        'Browse': '浏览', 'Explore': '探索',
+        'Go premium': '开通高级会员', 'Sign in': '登录',
+        'Create an account': '创建账户',
+        'Download mods': '下载模组', 'Mod manager': '模组管理器',
+        'Vortex': 'Vortex',
       },
 
       home: {
@@ -616,6 +669,10 @@
         'Discover the best mods': '探索最佳模组',
         'Safe to use': '安全使用', 'Totally free': '完全免费',
         'Community-driven': '社区驱动',
+        'Welcome back': '欢迎回来', 'Welcome': '欢迎',
+        'Tracking centre': '追踪中心', 'Activity feed': '动态',
+        'Your feed': '你的动态', 'Recommended mods': '推荐模组',
+        'Recently viewed': '最近浏览', 'Favourite games': '收藏游戏',
       },
 
       mod_detail: {
@@ -724,6 +781,7 @@
         'Genre': '类型', 'Developer': '开发商', 'Publisher': '发行商',
         'Platforms': '平台', 'Track this game': '追踪此游戏',
         'Stop tracking this game': '停止追踪',
+        'Browse all mods': '浏览全部模组', 'Browse collections': '浏览合集',
       },
 
       search: {
