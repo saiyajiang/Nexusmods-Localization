@@ -17,16 +17,15 @@
 // @grant        GM_addStyle
 // @run-at       document-start
 // @antifeature  adult-content 此脚本运行于包含成人内容的网站（Nexus Mods）
-//
-// 原项目参考：https://github.com/SychO3/nexusmods-chinese (v0.2.2, MIT License)
-//
-// ==UserScript==
+// ==/UserScript==
 
 /**
  * Nexusmods-Localization — 油猴单文件脚本
  * @license MIT
  *
  * ⚠️  声明：本项目代码由 AI 辅助生成，经人工审核后发布。
+ *
+ * 原项目参考：https://github.com/SychO3/nexusmods-chinese (v0.2.2, MIT License)
  *
  * 本文件包含以下三个模块（为符合 Greasy Fork 代码托管规则，内嵌于单文件中）：
  *   1. 翻译引擎 (core)    — 路由检测、词典匹配、DOM 遍历与动态监听
