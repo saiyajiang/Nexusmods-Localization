@@ -292,8 +292,15 @@
       'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
       'Contact': '联系',
       'MY STUFF': '我的内容',
+      'My stuff': '我的内容',
       'Member': '会员',
       'Try premium free': '免费试用高级会员',
+      // 导航下拉菜单补充（Title Case 版本，从实际 DOM 发现）
+      'Mod updates': '模组更新',
+      'Modding tutorials': '模组教程',
+      'Vortex mod manager': 'Vortex 模组管理器',
+      'Collections tutorials': '合集教程',
+      'Supporter images': '支持者图片',
     },
 
     // ──────────────────────────────────────────

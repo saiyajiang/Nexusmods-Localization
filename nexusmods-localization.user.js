@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.7
+// @version      0.1.8
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -415,8 +415,22 @@
     'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
     'Contact': '联系',
     'MY STUFF': '我的内容',
+    'My stuff': '我的内容',
     'Member': '会员',
     'Try premium free': '免费试用高级会员',
+    // 导航下拉菜单补充（从 DOM 发现的 Title Case 版本）
+    'Mod updates': '模组更新',
+    'Modding tutorials': '模组教程',
+    'Vortex mod manager': 'Vortex 模组管理器',
+    'Collections tutorials': '合集教程',
+    'Supporter images': '支持者图片',
+    // 导航/通用补充（从实际 DOM 发现）
+    'Upload mod': '上传模组',
+    'Tracking centre': '追踪中心',
+    'Trending': '趋势',
+    'Most endorsed': '最多认可',
+    'New': '新',
+    'Authenticated': '已认证',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -660,7 +674,20 @@
         translated = this.dict[key];
       }
 
-      // 2. 正则模板匹配（处理带变量的文本）
+      // 2. 大小写不敏感匹配（fallback）
+      //    Nexus Mods 同一文本在不同位置大小写不一致：
+      //    导航标题 "Mod updates" vs 下拉菜单 "MOD UPDATES"
+      if (translated === null) {
+        const keyLower = key.toLowerCase();
+        for (const k of this.keys) {
+          if (k.toLowerCase() === keyLower) {
+            translated = this.dict[k];
+            break;
+          }
+        }
+      }
+
+      // 3. 正则模板匹配（处理带变量的文本）
       if (translated === null) {
         for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
           const m = key.match(pattern);
@@ -739,7 +766,18 @@
         translated = this.dict[mergedKey];
       }
 
-      // 2. 正则匹配
+      // 2. 大小写不敏感匹配（fallback）
+      if (translated === null) {
+        const keyLower = mergedKey.toLowerCase();
+        for (const k of this.keys) {
+          if (k.toLowerCase() === keyLower) {
+            translated = this.dict[k];
+            break;
+          }
+        }
+      }
+
+      // 3. 正则匹配
       if (translated === null) {
         for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
           const m = mergedKey.match(pattern);
@@ -750,7 +788,7 @@
         }
       }
 
-      // 3. 如果合并文本已部分翻译（含中文），尝试模糊匹配中英混合词条
+      // 4. 如果合并文本已部分翻译（含中文），尝试模糊匹配中英混合词条
       if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)) {
         // 归一化：统一空格和标点后尝试匹配
         const normalizedKey = mergedKey.replace(/\s*[,，]\s*/g, ', ').replace(/\s*\.。?\s*$/g, '.').replace(/\s+/g, ' ').trim();
@@ -759,7 +797,7 @@
         }
       }
 
-      // 4. 如果仍然未翻译且含中文，替换残留的英文连接词
+      // 5. 如果仍然未翻译且含中文，替换残留的英文连接词
       if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)) {
         const connectorMap = [
           [/\bto\b/gi, '以'],
