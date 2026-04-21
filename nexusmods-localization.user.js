@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.6
+// @version      0.1.7
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -485,6 +485,37 @@
     'Platforms': '平台', 'Track this game': '追踪此游戏',
     'Stop tracking this game': '停止追踪',
 
+    // 游戏列表页
+    'Choose from': '选择',
+    'games to mod': '款可模组化的游戏',
+    'Get games to mod, cheaper.': '更便宜地获取可模组化的游戏。',
+    'Discover offers': '发现优惠',
+    'Hide filters': '隐藏筛选',
+    'Show filters': '显示筛选',
+    'Game genre': '游戏类型',
+    'Game genre search': '搜索游戏类型',
+    'Vortex Support': 'Vortex 支持',
+    'Supported by Vortex': 'Vortex 支持',
+    'Show games with Collections': '显示有合集的游戏',
+    'No. of mods': '模组数',
+    'No. of collections': '合集数',
+    'Download count': '下载量',
+    'Sort': '排序',
+    'Page': '页',
+    'Go': '跳转',
+    // 游戏类型
+    'Action': '动作', 'Adventure': '冒险', 'ARPG': 'ARPG',
+    'Dungeon crawl': '地牢探索', 'Fighting': '格斗',
+    'FPS': 'FPS', 'Hack and Slash': '砍杀', 'Horror': '恐怖',
+    'Indie': '独立', 'Metroidvania': '银河恶魔城', 'MMORPG': 'MMORPG',
+    'Music': '音乐', 'Platformer': '平台', 'Puzzle': '解谜',
+    'Racing': '竞速', 'Roguelike': 'Roguelike', 'RPG': 'RPG',
+    'Sandbox': '沙盒', 'Simulation': '模拟', 'Space sim': '太空模拟',
+    'Sports': '体育', 'Stealth': '潜行', 'Strategy': '策略',
+    'Survival': '生存', 'Third-Person Shooter': '第三人称射击',
+    'Visual Novel': '视觉小说',
+    'results': '个结果',
+
     // 搜索
     'Search results': '搜索结果', 'All results': '全部结果',
     'Users': '用户',
@@ -703,7 +734,7 @@
       // 尝试翻译合并后的文本
       let translated = null;
 
-      // 1. 字典匹配
+      // 1. 字典精确匹配
       if (mergedKey in this.dict) {
         translated = this.dict[mergedKey];
       }
@@ -716,6 +747,47 @@
             translated = replacer(m);
             break;
           }
+        }
+      }
+
+      // 3. 如果合并文本已部分翻译（含中文），尝试模糊匹配中英混合词条
+      if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)) {
+        // 归一化：统一空格和标点后尝试匹配
+        const normalizedKey = mergedKey.replace(/\s*[,，]\s*/g, ', ').replace(/\s*\.。?\s*$/g, '.').replace(/\s+/g, ' ').trim();
+        if (normalizedKey in this.dict) {
+          translated = this.dict[normalizedKey];
+        }
+      }
+
+      // 4. 如果仍然未翻译且含中文，替换残留的英文连接词
+      if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)) {
+        const connectorMap = [
+          [/\bto\b/gi, '以'],
+          [/\bget\b/gi, '获得'],
+          [/\band\b/gi, '和'],
+          [/\bfor\b/gi, '为'],
+          [/\bwith\b/gi, '与'],
+          [/\bor\b/gi, '或'],
+          [/\bthe\b/gi, ''],
+          [/\ba\b/gi, ''],
+          [/\ban\b/gi, ''],
+          [/\bof\b/gi, '的'],
+          [/\bin\b/gi, '在'],
+          [/\bon\b/gi, '在'],
+          [/\bat\b/gi, '在'],
+          [/\bby\b/gi, '由'],
+          [/\bfrom\b/gi, '从'],
+        ];
+        let result = mergedKey;
+        let changed = false;
+        for (const [pattern, replacement] of connectorMap) {
+          const newResult = result.replace(pattern, replacement);
+          if (newResult !== result) changed = true;
+          result = newResult;
+        }
+        if (changed) {
+          // 清理多余空格
+          translated = result.replace(/\s{2,}/g, ' ').replace(/\s*([，。、])\s*/g, '$1').trim();
         }
       }
 
