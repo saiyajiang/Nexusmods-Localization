@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 多语言本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.0
+// @version      0.1.2
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       Nexusmods-Localization Contributors
@@ -52,26 +52,14 @@
     '[data-no-i18n]',
     'script', 'style', 'textarea', 'input',
   ];
-  // 扫描专用排除区域（比翻译更严格：排除模组卡片、新闻、用户内容等）
+  // 扫描专用排除区域（只排除确定不该翻译的整块区域）
   const SCAN_IGNORE_SELECTORS = [
     // 翻译排除区（继承）
     ...IGNORE_SELECTORS,
-    // 模组卡片（含模组名、作者、描述、分类等用户内容）
-    '[class*="@container/mod-tile"]',
-    '.mods-grid',
-    // 新闻/文章区
-    '[class*="border-stroke-subdued"]',
-    '[class*="space-y-16"]',
-    '[class*="news"]', '[class*="article"]',
-    // Premium 广告区（含碎片词 premium/to/and/get）
-    '[class*="border-premium-moderate"]',
-    '[class*="premium-moderate"]',
-    // Footer 版权
+    // Footer 版权区
     'footer', '[class*="footer"]',
     // 评论区
-    '[class*="comment"]',
-    // 用户名链接（a 元素内只有用户名）
-    'a[data-user-id]', '.user-name', '.author-name',
+    '.comment-body', '.comment-content',
   ];
   const TRANSLATABLE_ATTRS = ['placeholder', 'title', 'aria-label', 'data-tooltip'];
 
@@ -85,8 +73,10 @@
   //  格式：[正则, 替换函数]
   // ═══════════════════════════════════════════════
   const REGEXP_TRANSLATIONS = [
-    // Welcome back, {username}
+    // Welcome back, {username} — 完整版
     [/^Welcome back,\s*(.+)$/i, (m) => `欢迎回来，${m[1]}`],
+    // Welcome back, — 半截版（用户名在不同文本节点）
+    [/^Welcome back,$/i, () => '欢迎回来，'],
     // Welcome, {username}
     [/^Welcome,\s*(.+)$/i, (m) => `欢迎，${m[1]}`],
     // {count} new notifications
@@ -301,12 +291,25 @@
     'Breadcrumb navigation': '面包屑导航',
     'Downloaded': '已下载',
     'New': '新',
+    'premium': '高级会员',
     'Top pick': '精选推荐',
     'Easy install': '轻松安装',
     'MOD REQUEST': '模组请求',
     'Site News': '站点资讯',
     'No. of endorsements': '认可数',
     'My Games': '我的游戏',
+    'Surprise': '惊喜',
+
+    // 模组分类标签（出现在卡片上，是 UI 文本不是用户内容）
+    'Utilities': '实用工具', 'Armour and Clothing': '盔甲与服装',
+    'Armour': '盔甲', 'Clothing': '服装',
+    'Modding Tools': '模组工具', 'Addons': '附加组件',
+    'Visuals': '视觉效果', 'Environment': '环境',
+    'Gameplay': '游戏玩法', 'Characters': '角色',
+    'Animations': '动画', 'Weapons': '武器',
+    'Mod Organizer 2 Plugins': 'MO2 插件',
+    'Dress for Fem V': '女性V服装',
+    'For FemV': '女性V',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -800,24 +803,62 @@
     downloadFile(csv, 'nexusmods-translations-template.csv', 'text/csv;charset=utf-8');
   }
 
-  /** 扫描当前页面 UI 框架文本，导出为 CSV（按父元素合并，避免碎片） */
+  /** 扫描当前页面 UI 框架文本，导出为 CSV（按父元素合并，智能过滤） */
   function scanPageTexts() {
     const dict = window._nexusTranslator ? window._nexusTranslator.dict : Object.assign({}, DEFAULT_TRANSLATIONS, GM_getValue(CUSTOM_KEY, {}));
 
-    // 构建反向字典：中文值→Set，用于排除已翻译节点
+    // 构建反向字典：中文值→Set，排除已翻译节点
     const reverseDict = new Set();
     for (const zh of Object.values(dict)) {
       if (zh && typeof zh === 'string') reverseDict.add(zh);
     }
 
-    // 扫描排除选择器
+    // 扫描排除选择器（仅排除确定不该翻译的整块区域）
     const scanIgnoreSelector = SCAN_IGNORE_SELECTORS.join(', ');
 
-    const seen = new Set();
-    const results = []; // [{original, localized}]
+    // ── 判断一个父元素是否在模组卡片内且是"用户内容" ──
+    // 模组卡片里的分类标签（Utilities, Armour 等）需要翻译
+    // 但模组名、描述、作者名不该扫
+    function isUserContent(el) {
+      // 向上查找是否在模组卡片内
+      const tile = el.closest ? el.closest('[class*="@container/mod-tile"]') : null;
+      if (!tile) return false;
 
-    // ── 核心思路：按"有意义的块级父元素"合并文本 ──
-    // 遍历所有直接包含文本节点的元素，把同一元素下的文本合并为一条
+      // 在模组卡片内，检查当前元素的角色
+      const tag = el.tagName.toLowerCase();
+      const cls = el.className || '';
+      const clsStr = typeof cls === 'string' ? cls : '';
+
+      // 标题/模组名 — 通常是大号文字链接
+      if (tag === 'a' && el.closest('[class*="mod-tile"]') && el.querySelector('h2, h3, [class*="heading"]')) return true;
+      if (tag === 'a' && el.closest('[class*="mod-tile"]') && el.getAttribute('href') && /\/mods\//i.test(el.getAttribute('href'))) return true;
+
+      // 模组描述 — 通常是 <p> 且文本较长
+      if (tag === 'p' && el.textContent.trim().length > 60) return true;
+
+      // 作者名 — 链接到用户主页
+      if (tag === 'a' && el.getAttribute('href') && /\/users\//i.test(el.getAttribute('href'))) return true;
+
+      // 文件大小/下载量等数字
+      if (tag === 'span' && /^[\d.,]+\s*(KB|MB|GB|TB|B|k)$/i.test(el.textContent.trim())) return true;
+
+      return false;
+    }
+
+    // ── 判断是否是新闻/文章的用户内容 ──
+    function isNewsContent(el) {
+      const tag = el.tagName.toLowerCase();
+      // 新闻标题 — 链接包含 /news/
+      if (tag === 'a' && el.getAttribute('href') && /\/news\//i.test(el.getAttribute('href'))) return true;
+      // 新闻摘要 — 长段落
+      if (tag === 'p' && el.textContent.trim().length > 60) return true;
+      return false;
+    }
+
+    const seen = new Set();
+    const results = [];
+
+    // ── 核心思路：按父元素合并文本 ──
     const visitedParents = new WeakSet();
     const textWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
@@ -838,10 +879,14 @@
       if (!parent || visitedParents.has(parent)) continue;
       visitedParents.add(parent);
 
-      // 检查父元素是否在排除区
       try {
         if (parent.closest(scanIgnoreSelector)) continue;
       } catch (e) { /* ignore */ }
+
+      // 模组卡片内的用户内容跳过
+      if (isUserContent(parent)) continue;
+      // 新闻内容跳过
+      if (isNewsContent(parent)) continue;
 
       // 合并此父元素下所有直接文本子节点
       const mergedText = [];
@@ -890,10 +935,12 @@
 
       seen.add(fullText);
 
-      // 判断是否是用户名（单个短词，看起来像用户名的）
-      // 如果父元素是 <a> 且文本很短且包含大小写混合的词，可能是用户名
+      // 跳过用户名（<a> 内纯字母数字短文本）
       const isLink = parent.tagName.toLowerCase() === 'a';
       if (isLink && fullText.length < 30 && /^[A-Za-z0-9_]+$/.test(fullText)) continue;
+
+      // 跳过模组描述（长文本且在模组卡片内）
+      if (fullText.length > 100 && parent.closest('[class*="@container/mod-tile"]')) continue;
 
       results.push({
         original: fullText,
