@@ -73,6 +73,10 @@
       'My mods': '我的模组',
       'My collections': '我的合集',
       'My games': '我的游戏',
+      'My images': '我的图片',
+      'My videos': '我的视频',
+      'My media': '我的媒体',
+      'My wallet': '我的钱包',
       'Dashboard': '控制台',
       'Settings': '设置',
       'Notifications': '通知',
@@ -285,6 +289,10 @@
       'GIVE FEEDBACK': '提供反馈',
       'Give Feedback': '提供反馈',
       'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
+      'Contact': '联系',
+      'MY STUFF': '我的内容',
+      'Member': '会员',
+      'Try premium free': '免费试用高级会员',
     },
 
     // ──────────────────────────────────────────

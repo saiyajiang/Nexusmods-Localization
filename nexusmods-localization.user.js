@@ -2,10 +2,10 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.4
+// @version      0.1.5
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
-// @author       Nexusmods-Localization Contributors
+// @author       saiyajiang
 // @license      MIT
 // @homepageURL  https://github.com/saiyajiang/Nexusmods-Localization
 // @supportURL   https://github.com/saiyajiang/Nexusmods-Localization/issues
@@ -44,6 +44,64 @@
   const STORAGE_KEY = 'nx_translations';       // 所有翻译词条 { english: chinese }
   const CUSTOM_KEY = 'nx_custom_translations';  // 仅用户自定义的词条
   const DATE_L10N_KEY = 'nx_date_l10n';
+
+  // ═══════════════════════════════════════════════
+  //  Toast 通知（替代 alert/confirm）
+  // ═══════════════════════════════════════════════
+  function showToast(msg, type = 'info', duration = 2500) {
+    const colors = {
+      info:    'background:#2563eb;color:#fff',
+      success: 'background:#16a34a;color:#fff',
+      error:   'background:#dc2626;color:#fff',
+      warning: 'background:#d97706;color:#fff',
+    };
+    let container = document.getElementById('nx-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'nx-toast-container';
+      container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+      document.body.appendChild(container);
+    }
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = `${colors[type] || colors.info};padding:10px 18px;border-radius:8px;font-size:14px;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:opacity .3s;pointer-events:auto;max-width:360px;word-break:break-word;`;
+    container.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    setTimeout(() => {
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, duration);
+  }
+
+  function showConfirm(msg, onConfirm, onCancel) {
+    let container = document.getElementById('nx-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'nx-toast-container';
+      container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483647;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+      document.body.appendChild(container);
+    }
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#1e293b;color:#f1f5f9;padding:16px 20px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:14px;line-height:1.6;max-width:360px;pointer-events:auto;';
+    const msgEl = document.createElement('div');
+    msgEl.textContent = msg;
+    msgEl.style.marginBottom = '12px';
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+    const btnConfirm = document.createElement('button');
+    btnConfirm.textContent = '确定';
+    btnConfirm.style.cssText = 'padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;background:#dc2626;color:#fff;';
+    const btnCancel = document.createElement('button');
+    btnCancel.textContent = '取消';
+    btnCancel.style.cssText = 'padding:6px 16px;border-radius:6px;border:1px solid #475569;cursor:pointer;font-size:13px;background:transparent;color:#94a3b8;';
+    btnConfirm.onclick = () => { box.remove(); onConfirm && onConfirm(); };
+    btnCancel.onclick = () => { box.remove(); onCancel && onCancel(); };
+    btns.appendChild(btnCancel);
+    btns.appendChild(btnConfirm);
+    box.appendChild(msgEl);
+    box.appendChild(btns);
+    container.appendChild(box);
+  }
   const IGNORE_SELECTORS = [
     '.mod_description_container',
     '.prose-lexical.prose',
@@ -123,6 +181,8 @@
     'Sign Up': '注册', 'Log out': '退出',
     'My account': '我的账户', 'My profile': '我的主页',
     'My mods': '我的模组', 'My collections': '我的合集', 'My games': '我的游戏',
+    'My images': '我的图片', 'My videos': '我的视频',
+    'My media': '我的媒体', 'My wallet': '我的钱包',
     'Dashboard': '控制台', 'Settings': '设置', 'Notifications': '通知', 'Messages': '消息',
 
     // 通用按钮
@@ -352,6 +412,10 @@
     'GIVE FEEDBACK': '提供反馈',
     'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
     'Give Feedback': '提供反馈',
+    'Contact': '联系',
+    'MY STUFF': '我的内容',
+    'Member': '会员',
+    'Try premium free': '免费试用高级会员',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -920,14 +984,14 @@
         const imported = parseCSV(text);
         const count = Object.keys(imported).length;
         if (count === 0) {
-          alert('导入失败，请检查文件格式。');
+          showToast('导入失败，请检查文件格式。', 'error');
           return;
         }
         // 合并到自定义存储
         const existing = GM_getValue(CUSTOM_KEY, {});
         const merged = Object.assign({}, existing, imported);
         GM_setValue(CUSTOM_KEY, merged);
-        alert(`导入成功！已加载 ${count} 条翻译词条。`);
+        showToast(`导入成功！已加载 ${count} 条翻译词条。`, 'success');
         // 重新加载翻译
         if (window._nexusTranslator) {
           window._nexusTranslator.reload();
@@ -1126,7 +1190,7 @@
 
     const count = results.length;
     if (count === 0) {
-      alert('当前页面没有可翻译的文本。');
+      showToast('当前页面没有可翻译的文本。', 'warning');
       return;
     }
 
@@ -1139,15 +1203,15 @@
     }
     const csv = lines.join('\n');
     downloadFile(csv, `nexusmods-scan-${Date.now()}.csv`, 'text/csv;charset=utf-8');
-    alert(`已导出 ${count} 条待翻译文本到 CSV 文件。`);
+    showToast(`已导出 ${count} 条待翻译文本到 CSV 文件。`, 'success');
   }
 
   function resetCustom() {
-    if (confirm('确定要清除所有自定义翻译词条吗？\n（内置翻译不受影响）')) {
+    showConfirm('确定要清除所有自定义翻译词条吗？\n（内置翻译不受影响）', () => {
       GM_setValue(CUSTOM_KEY, {});
-      alert('已清除所有自定义词条，即将刷新页面。');
-      location.reload();
-    }
+      showToast('已清除所有自定义词条，即将刷新页面。', 'success');
+      setTimeout(() => location.reload(), 1000);
+    });
   }
 
   // ═══════════════════════════════════════════════
