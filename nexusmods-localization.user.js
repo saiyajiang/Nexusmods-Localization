@@ -58,7 +58,48 @@
   //  内置默认翻译词条
   //  格式：{ "English text": "中文翻译" }
   //  不分页面，全局匹配，简单粗暴但可靠
+  //
+  //  正则模板词条（REGEXP_TRANSLATIONS）：
+  //  匹配带变量的文本，如 "Welcome back, xxx" → "欢迎回来, xxx"
+  //  格式：[正则, 替换函数]
   // ═══════════════════════════════════════════════
+  const REGEXP_TRANSLATIONS = [
+    // Welcome back, {username}
+    [/^Welcome back,\s*(.+)$/i, (m) => `欢迎回来，${m[1]}`],
+    // Welcome, {username}
+    [/^Welcome,\s*(.+)$/i, (m) => `欢迎，${m[1]}`],
+    // {count} new notifications
+    [/^(\d+)\s+new notifications?$/i, (m) => `${m[1]} 条新通知`],
+    // {count} new messages
+    [/^(\d+)\s+new messages?$/i, (m) => `${m[1]} 条新消息`],
+    // {count} mods updated
+    [/^(\d+)\s+mods? updated$/i, (m) => `${m[1]} 个模组已更新`],
+    // {count} comments
+    [/^(\d+)\s+comments?$/i, (m) => `${m[1]} 条评论`],
+    // {count} endorsements
+    [/^(\d+)\s+endorsements?$/i, (m) => `${m[1]} 次认可`],
+    // {count} downloads
+    [/^(\d+)\s+downloads?$/i, (m) => `${m[1]} 次下载`],
+    // {count} views
+    [/^(\d+)\s+views?$/i, (m) => `${m[1]} 次浏览`],
+    // {count} followers
+    [/^(\d+)\s+followers?$/i, (m) => `${m[1]} 个关注者`],
+    // {count} results
+    [/^(\d+)\s+results?$/i, (m) => `${m[1]} 个结果`],
+    // Uploaded by {author}
+    [/^Uploaded by\s+(.+)$/i, (m) => `上传者：${m[1]}`],
+    // Created by {author}
+    [/^Created by\s+(.+)$/i, (m) => `创建者：${m[1]}`],
+    // Updated {time} ago
+    [/^Updated\s+(\d+\s+\w+\s+ago)$/i, (m) => `更新于 ${m[1]}`],
+    // Posted {time} ago
+    [/^Posted\s+(\d+\s+\w+\s+ago)$/i, (m) => `发布于 ${m[1]}`],
+    // {count} mods in collection
+    [/^(\d+)\s+mods? in (?:this )?collection$/i, (m) => `${m[1]} 个模组在此合集中`],
+    // {game} - {count} mods
+    [/^-\s*(\d+)\s+mods?$/i, (m) => `- ${m[1]} 个模组`],
+  ];
+
   const DEFAULT_TRANSLATIONS = {
     // 导航
     'Home': '首页', 'Games': '游戏', 'Mods': '模组', 'Collections': '合集',
@@ -161,6 +202,17 @@
     'Go premium': '开通高级会员', 'Sign in': '登录',
     'Create an account': '创建账户',
     'Download mods': '下载模组', 'Mod manager': '模组管理器',
+    'My content': '我的内容', 'My content library': '我的内容库',
+    'Content library': '内容库', 'My download history': '我的下载历史',
+    'Account details': '账户详情', 'Site preferences': '网站偏好',
+    'Blocked users': '已屏蔽用户', 'Blocked authors': '已屏蔽作者',
+    'Notification preferences': '通知偏好', 'Privacy': '隐私',
+    'Content controls': '内容控制', 'Search filters': '搜索筛选',
+    'Manage tracked mods': '管理追踪模组', 'Manage tracked games': '管理追踪游戏',
+    'Tracked mods': '追踪的模组', 'Tracked games': '追踪的游戏',
+    'Premium membership': '高级会员资格', 'Supporter membership': '支持者会员',
+    'Free downloads': '免费下载', 'No cooldown': '无冷却',
+    'Download history': '下载历史',
 
     // 首页
     'Featured mods': '精选模组', 'Featured collections': '精选合集',
@@ -376,14 +428,28 @@
       if (!original || !original.trim()) return;
 
       const key = original.replace(/\s+/g, ' ').trim();
+      let translated = null;
+
+      // 1. 精确匹配（字典）
       if (key in this.dict) {
-        const translated = this.dict[key];
-        if (translated !== original.trim()) {
-          // 保留前后的空白
-          const leading = original.match(/^\s*/)[0];
-          const trailing = original.match(/\s*$/)[0];
-          node.nodeValue = leading + translated + trailing;
+        translated = this.dict[key];
+      }
+
+      // 2. 正则模板匹配（处理带变量的文本）
+      if (translated === null) {
+        for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
+          const m = key.match(pattern);
+          if (m) {
+            translated = replacer(m);
+            break;
+          }
         }
+      }
+
+      if (translated && translated !== key) {
+        const leading = original.match(/^\s*/)[0];
+        const trailing = original.match(/\s*$/)[0];
+        node.nodeValue = leading + translated + trailing;
       }
 
       // 日期本地化
@@ -619,14 +685,26 @@
         const imported = parseCSV(text);
         const count = Object.keys(imported).length;
         if (count === 0) {
-          alert('未找到有效的翻译词条，请检查文件格式。');
+          alert('未找到有效的翻译词条，请检查文件格式。\n\n格式要求：\n- 第一行可以是表头（English,中文）\n- 每行格式：英文原文,中文翻译\n- UTF-8 编码');
           return;
         }
-        // 合并到自定义存储
+        // 统计新增/覆盖/跳过
         const existing = GM_getValue(CUSTOM_KEY, {});
+        let newCount = 0, updateCount = 0;
+        for (const [en, zh] of Object.entries(imported)) {
+          if (existing[en] !== undefined) {
+            updateCount++;
+          } else if (DEFAULT_TRANSLATIONS[en] !== undefined) {
+            updateCount++;  // 覆盖默认值
+          } else {
+            newCount++;
+          }
+        }
+        // 合并到自定义存储
         const merged = Object.assign({}, existing, imported);
         GM_setValue(CUSTOM_KEY, merged);
-        alert(`成功导入 ${count} 条翻译词条！\n（总计自定义词条：${Object.keys(merged).length}）`);
+        const total = Object.keys(merged).length;
+        alert(`导入完成！\n\n✅ 文件中共 ${count} 条词条\n📝 新增：${newCount} 条\n🔄 覆盖：${updateCount} 条\n💾 自定义词条总计：${total} 条\n📄 内置词条：${Object.keys(DEFAULT_TRANSLATIONS).length} 条`);
         // 重新加载翻译
         if (window._nexusTranslator) {
           window._nexusTranslator.reload();
