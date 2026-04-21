@@ -301,6 +301,13 @@
       'Vortex mod manager': 'Vortex 模组管理器',
       'Collections tutorials': '合集教程',
       'Supporter images': '支持者图片',
+      // 搜索弹窗
+      'All content': '全部内容',
+      'Search mods, games, collections, images & videos': '搜索模组、游戏、合集、图片和视频',
+      'Customise your search preferences': '自定义搜索偏好',
+      'Enter': '确认',
+      'Select': '选择',
+      'Move': '移动',
     },
 
     // ──────────────────────────────────────────

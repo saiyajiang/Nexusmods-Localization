@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.8
+// @version      0.1.9
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -431,6 +431,13 @@
     'Most endorsed': '最多认可',
     'New': '新',
     'Authenticated': '已认证',
+    // 搜索弹窗
+    'All content': '全部内容',
+    'Search mods, games, collections, images & videos': '搜索模组、游戏、合集、图片和视频',
+    'Customise your search preferences': '自定义搜索偏好',
+    'Enter': '确认',
+    'Select': '选择',
+    'Move': '移动',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
