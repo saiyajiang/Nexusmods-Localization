@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 多语言本地化
-// @namespace    https://github.com/yourusername/Nexusmods-Localization
+// @namespace    https://github.com/saiyajiang/Nexusmods-Localization
 // @version      1.0.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports custom language packs via the NexusLocales interface.
 // @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持自定义语言包接口
 // @author       Nexusmods-Localization Contributors
 // @license      MIT
-// @homepageURL  https://github.com/yourusername/Nexusmods-Localization
-// @supportURL   https://github.com/yourusername/Nexusmods-Localization/issues
+// @homepageURL  https://github.com/saiyajiang/Nexusmods-Localization
+// @supportURL   https://github.com/saiyajiang/Nexusmods-Localization/issues
 // @match        https://www.nexusmods.com/*
 // @match        https://nexusmods.com/*
 // @grant        GM_getValue
@@ -17,9 +17,9 @@
 // @grant        GM_addStyle
 // @run-at       document-start
 //
-// @require      https://raw.githubusercontent.com/yourusername/Nexusmods-Localization/main/src/core.js
-// @require      https://raw.githubusercontent.com/yourusername/Nexusmods-Localization/main/src/date-localizer.js
-// @require      https://raw.githubusercontent.com/yourusername/Nexusmods-Localization/main/locales/zh-CN.js
+// @require      https://raw.githubusercontent.com/saiyajiang/Nexusmods-Localization/main/src/core.js
+// @require      https://raw.githubusercontent.com/saiyajiang/Nexusmods-Localization/main/src/date-localizer.js
+// @require      https://raw.githubusercontent.com/saiyajiang/Nexusmods-Localization/main/locales/zh-CN.js
 //
 // ==UserScript==
 

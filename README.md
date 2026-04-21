@@ -30,7 +30,7 @@
 点击以下链接，油猴会弹出安装确认页：
 
 ```
-https://raw.githubusercontent.com/yourusername/Nexusmods-Localization/main/nexusmods-localization.user.js
+https://raw.githubusercontent.com/saiyajiang/Nexusmods-Localization/main/nexusmods-localization.user.js
 ```
 
 ### 手动安装

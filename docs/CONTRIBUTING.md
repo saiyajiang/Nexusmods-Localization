@@ -42,7 +42,7 @@
 
 ### Bug 反馈
 
-在 [Issues](https://github.com/yourusername/Nexusmods-Localization/issues) 页面提交，请包含：
+在 [Issues](https://github.com/saiyajiang/Nexusmods-Localization/issues) 页面提交，请包含：
 
 - Nexus Mods 页面 URL
 - 浏览器 + 油猴版本
@@ -100,5 +100,5 @@ locales/xx.js         → 语言包，只包含翻译数据
 
 ## 问题反馈
 
-- [GitHub Issues](https://github.com/yourusername/Nexusmods-Localization/issues)
+- [GitHub Issues](https://github.com/saiyajiang/Nexusmods-Localization/issues)
 - 提交前请先搜索是否已有相同问题
