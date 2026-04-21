@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.3
+// @version      0.1.4
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       Nexusmods-Localization Contributors
@@ -324,6 +324,34 @@
     'Dress for Fem V': '女性V服装',
     'For FemV': '女性V',
     'Adult': '成人',
+
+    // 导航下拉菜单
+    'Recently added': '最近添加',
+    'MOD UPDATES': '模组更新',
+    'Mod rewards': '模组奖励',
+    'MODDING TUTORIALS': '模组教程',
+    'Learn from the community with tutorials and guides.': '通过教程和指南向社区学习。',
+    'VORTEX MOD MANAGER': 'Vortex 模组管理器',
+    'The elegant, powerful and open-source mod manager.': '优雅、强大且开源的模组管理器。',
+    'COLLECTIONS TUTORIALS': '合集教程',
+    'Highest rated': '最高评分',
+    'SUPPORTER IMAGES': '支持者图片',
+    'Upgrade your account to unlock all media content.': '升级账户以解锁所有媒体内容。',
+    'Upgrade': '升级',
+    'Upload image': '上传图片',
+    'Upload video': '上传视频',
+    'All news': '全部新闻',
+    'Site news': '网站资讯',
+    'Competitions': '竞赛',
+    'Interviews': '访谈',
+    'Game guides': '游戏指南',
+    'Tutorial': '教程',
+    'Tools': '工具',
+    'Vortex help': 'Vortex 帮助',
+    'Install Vortex': '安装 Vortex',
+    'GIVE FEEDBACK': '提供反馈',
+    'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
+    'Give Feedback': '提供反馈',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
