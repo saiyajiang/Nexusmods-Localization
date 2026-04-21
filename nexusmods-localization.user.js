@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 多语言本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      1.1.0
+// @version      0.9.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports custom language packs via the NexusLocales interface.
 // @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持自定义语言包接口
 // @author       Nexusmods-Localization Contributors
@@ -15,7 +15,7 @@
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
-// @run-at       document-start
+// @run-at       document-idle
 // @antifeature  adult-content 此脚本运行于包含成人内容的网站（Nexus Mods）
 // ==/UserScript==
 
@@ -193,30 +193,38 @@
           this.translateAttributes(root);
         }
 
-        const walker = document.createTreeWalker(
+        // 遍历文本节点
+        const textWalker = document.createTreeWalker(
           root,
-          NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+          NodeFilter.SHOW_TEXT,
           {
             acceptNode: (node) => {
-              if (node.nodeType === Node.ELEMENT_NODE) {
-                const tag = node.tagName.toLowerCase();
-                if (tag === 'script' || tag === 'style' || tag === 'textarea') return NodeFilter.FILTER_REJECT;
-                if (this._isIgnored(node)) return NodeFilter.FILTER_REJECT;
-                return NodeFilter.SKIP;
-              }
               if (this._isIgnored(node)) return NodeFilter.FILTER_REJECT;
               return NodeFilter.FILTER_ACCEPT;
             },
           }
         );
+        let textNode;
+        while ((textNode = textWalker.nextNode())) {
+          this.translateTextNode(textNode);
+        }
 
-        let node;
-        while ((node = walker.nextNode())) {
-          if (node.nodeType === Node.TEXT_NODE) {
-            this.translateTextNode(node);
-          } else if (node.nodeType === Node.ELEMENT_NODE) {
-            this.translateAttributes(node);
+        // 遍历元素节点（翻译属性）
+        const elWalker = document.createTreeWalker(
+          root,
+          NodeFilter.SHOW_ELEMENT,
+          {
+            acceptNode: (node) => {
+              const tag = node.tagName.toLowerCase();
+              if (tag === 'script' || tag === 'style' || tag === 'textarea') return NodeFilter.FILTER_REJECT;
+              if (this._isIgnored(node)) return NodeFilter.FILTER_REJECT;
+              return NodeFilter.FILTER_ACCEPT;
+            },
           }
+        );
+        let elNode;
+        while ((elNode = elWalker.nextNode())) {
+          this.translateAttributes(elNode);
         }
       }
     }
@@ -361,8 +369,8 @@
       }
 
       _onReady() {
-        this._onRouteChange();
         this.watcher.start();
+        this._onRouteChange();
       }
 
       _onRouteChange() {
