@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 多语言本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.9.0
+// @version      0.1.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站多语言本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       Nexusmods-Localization Contributors
@@ -685,26 +685,14 @@
         const imported = parseCSV(text);
         const count = Object.keys(imported).length;
         if (count === 0) {
-          alert('未找到有效的翻译词条，请检查文件格式。\n\n格式要求：\n- 第一行可以是表头（English,中文）\n- 每行格式：英文原文,中文翻译\n- UTF-8 编码');
+          alert('导入失败，请检查文件格式。');
           return;
         }
-        // 统计新增/覆盖/跳过
-        const existing = GM_getValue(CUSTOM_KEY, {});
-        let newCount = 0, updateCount = 0;
-        for (const [en, zh] of Object.entries(imported)) {
-          if (existing[en] !== undefined) {
-            updateCount++;
-          } else if (DEFAULT_TRANSLATIONS[en] !== undefined) {
-            updateCount++;  // 覆盖默认值
-          } else {
-            newCount++;
-          }
-        }
         // 合并到自定义存储
+        const existing = GM_getValue(CUSTOM_KEY, {});
         const merged = Object.assign({}, existing, imported);
         GM_setValue(CUSTOM_KEY, merged);
-        const total = Object.keys(merged).length;
-        alert(`导入完成！\n\n✅ 文件中共 ${count} 条词条\n📝 新增：${newCount} 条\n🔄 覆盖：${updateCount} 条\n💾 自定义词条总计：${total} 条\n📄 内置词条：${Object.keys(DEFAULT_TRANSLATIONS).length} 条`);
+        alert(`导入成功！已加载 ${count} 条翻译词条。`);
         // 重新加载翻译
         if (window._nexusTranslator) {
           window._nexusTranslator.reload();
@@ -728,6 +716,87 @@
     downloadFile(csv, 'nexusmods-translations-template.csv', 'text/csv;charset=utf-8');
   }
 
+  /** 扫描当前页面所有可见文本，找出未翻译的原文，导出为 CSV */
+  function scanPageTexts() {
+    const dict = window._nexusTranslator ? window._nexusTranslator.dict : Object.assign({}, DEFAULT_TRANSLATIONS, GM_getValue(CUSTOM_KEY, {}));
+    const seen = new Set();
+    const untranslated = {};
+
+    // 遍历页面所有文本节点
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const el = node.parentElement;
+        if (!el) return NodeFilter.FILTER_REJECT;
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
+        // 跳过忽略区域
+        try {
+          if (el.closest(IGNORE_SELECTORS.join(', '))) return NodeFilter.FILTER_REJECT;
+        } catch (e) { /* ignore */ }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!text || text.length < 2) continue;  // 跳过太短的
+      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(text)) continue;  // 跳过纯数字/符号
+
+      // 检查是否已翻译（精确匹配）
+      if (dict[text] !== undefined) continue;
+
+      // 检查是否匹配正则模板
+      let matchedRegexp = false;
+      for (const [pattern] of REGEXP_TRANSLATIONS) {
+        if (pattern.test(text)) { matchedRegexp = true; break; }
+      }
+      if (matchedRegexp) continue;
+
+      // 去重
+      if (seen.has(text)) continue;
+      seen.add(text);
+
+      // 如果已有翻译则保留翻译，否则留空
+      untranslated[text] = dict[text] || '';
+    }
+
+    // 同时扫描可翻译属性
+    const elWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
+      acceptNode: (n) => {
+        const tag = n.tagName.toLowerCase();
+        if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
+        try {
+          if (n.closest(IGNORE_SELECTORS.join(', '))) return NodeFilter.FILTER_REJECT;
+        } catch (e) { /* ignore */ }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let el;
+    while ((el = elWalker.nextNode())) {
+      for (const attr of TRANSLATABLE_ATTRS) {
+        const val = el.getAttribute(attr);
+        if (!val || !val.trim()) continue;
+        const text = val.replace(/\s+/g, ' ').trim();
+        if (text.length < 2) continue;
+        if (dict[text] !== undefined) continue;
+        if (seen.has(text)) continue;
+        seen.add(text);
+        untranslated[text] = dict[text] || '';
+      }
+    }
+
+    const count = Object.keys(untranslated).length;
+    if (count === 0) {
+      alert('当前页面所有文本均已翻译，无需补充！');
+      return;
+    }
+
+    const csv = toCSV(untranslated);
+    downloadFile(csv, `nexusmods-untranslated-${Date.now()}.csv`, 'text/csv;charset=utf-8');
+    alert(`已导出 ${count} 条未翻译的原文到 CSV 文件。\n\n可以用 Excel 打开编辑，翻译后通过"导入翻译词条"导入。`);
+  }
+
   function resetCustom() {
     if (confirm('确定要清除所有自定义翻译词条吗？\n（内置翻译不受影响）')) {
       GM_setValue(CUSTOM_KEY, {});
@@ -742,6 +811,7 @@
   GM_registerMenuCommand('📥 导入翻译词条 (CSV)', importCSV);
   GM_registerMenuCommand('📤 导出当前翻译词条', exportCSV);
   GM_registerMenuCommand('📋 导出默认词条模板', exportTemplate);
+  GM_registerMenuCommand('🔍 扫描页面未翻译原文', scanPageTexts);
   GM_registerMenuCommand('🗑️ 清除自定义词条', resetCustom);
 
   const dateL10nEnabled = GM_getValue(DATE_L10N_KEY, true);
