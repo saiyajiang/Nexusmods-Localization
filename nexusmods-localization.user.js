@@ -52,6 +52,27 @@
     '[data-no-i18n]',
     'script', 'style', 'textarea', 'input',
   ];
+  // 扫描专用排除区域（比翻译更严格：排除模组卡片、新闻、用户内容等）
+  const SCAN_IGNORE_SELECTORS = [
+    // 翻译排除区（继承）
+    ...IGNORE_SELECTORS,
+    // 模组卡片（含模组名、作者、描述、分类等用户内容）
+    '[class*="@container/mod-tile"]',
+    '.mods-grid',
+    // 新闻/文章区
+    '[class*="border-stroke-subdued"]',
+    '[class*="space-y-16"]',
+    '[class*="news"]', '[class*="article"]',
+    // Premium 广告区（含碎片词 premium/to/and/get）
+    '[class*="border-premium-moderate"]',
+    '[class*="premium-moderate"]',
+    // Footer 版权
+    'footer', '[class*="footer"]',
+    // 评论区
+    '[class*="comment"]',
+    // 用户名链接（a 元素内只有用户名）
+    'a[data-user-id]', '.user-name', '.author-name',
+  ];
   const TRANSLATABLE_ATTRS = ['placeholder', 'title', 'aria-label', 'data-tooltip'];
 
   // ═══════════════════════════════════════════════
@@ -98,6 +119,10 @@
     [/^(\d+)\s+mods? in (?:this )?collection$/i, (m) => `${m[1]} 个模组在此合集中`],
     // {game} - {count} mods
     [/^-\s*(\d+)\s+mods?$/i, (m) => `- ${m[1]} 个模组`],
+    // by {author}
+    [/^by\s+(.+)$/i, (m) => `由 ${m[1]}`],
+    // {count}k (如 10.1k 认可数)
+    [/^(\d+\.?\d*)k$/i, (m) => `${m[1]}k`],
   ];
 
   const DEFAULT_TRANSLATIONS = {
@@ -276,6 +301,12 @@
     'Breadcrumb navigation': '面包屑导航',
     'Downloaded': '已下载',
     'New': '新',
+    'Top pick': '精选推荐',
+    'Easy install': '轻松安装',
+    'MOD REQUEST': '模组请求',
+    'Site News': '站点资讯',
+    'No. of endorsements': '认可数',
+    'My Games': '我的游戏',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -769,43 +800,26 @@
     downloadFile(csv, 'nexusmods-translations-template.csv', 'text/csv;charset=utf-8');
   }
 
-  /** 扫描当前页面所有可见文本，导出为 CSV（原文 + 本地化两列） */
+  /** 扫描当前页面 UI 框架文本，导出为 CSV（按父元素合并，避免碎片） */
   function scanPageTexts() {
     const dict = window._nexusTranslator ? window._nexusTranslator.dict : Object.assign({}, DEFAULT_TRANSLATIONS, GM_getValue(CUSTOM_KEY, {}));
 
-    // 构建反向字典：中文→英文，用于排除已翻译的节点
+    // 构建反向字典：中文值→Set，用于排除已翻译节点
     const reverseDict = new Set();
     for (const zh of Object.values(dict)) {
-      if (zh && typeof zh === 'string') {
-        reverseDict.add(zh);
-      }
+      if (zh && typeof zh === 'string') reverseDict.add(zh);
     }
 
-    // 扫描排除区域（比翻译时更严格：排除模组内容、新闻等）
-    const SCAN_IGNORE = IGNORE_SELECTORS.concat([
-      // 模组卡片/描述/摘要
-      '.mod-card', '.mod-tile', '.tile-content',
-      '.mod-description', '.mod-summary', '.mod-abstract',
-      '.collection-card', '.collection-summary',
-      // 新闻/文章
-      '.news-article', '.news-card', '.article-body',
-      '.news-item', '.site-news', '.news-content',
-      // 评论区
-      '.comment-body', '.comment-content',
-      // 文件信息
-      '.file-name', '.file-description',
-      // 用户生成内容
-      '.user-content', '.user-review',
-      // 侧栏推荐模组的描述
-      '.recommended-mod', '.trending-mod',
-    ]);
-    const scanIgnoreSelector = SCAN_IGNORE.join(', ');
+    // 扫描排除选择器
+    const scanIgnoreSelector = SCAN_IGNORE_SELECTORS.join(', ');
 
     const seen = new Set();
-    const results = [];  // [{original, localized}]
+    const results = []; // [{original, localized}]
 
-    // 遍历页面所有文本节点
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    // ── 核心思路：按"有意义的块级父元素"合并文本 ──
+    // 遍历所有直接包含文本节点的元素，把同一元素下的文本合并为一条
+    const visitedParents = new WeakSet();
+    const textWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
         const el = node.parentElement;
         if (!el) return NodeFilter.FILTER_REJECT;
@@ -818,56 +832,72 @@
       }
     });
 
-    let node;
-    while ((node = walker.nextNode())) {
-      const currentText = node.nodeValue.replace(/\s+/g, ' ').trim();
-      if (!currentText || currentText.length < 2) continue;
+    let textNode;
+    while ((textNode = textWalker.nextNode())) {
+      const parent = textNode.parentElement;
+      if (!parent || visitedParents.has(parent)) continue;
+      visitedParents.add(parent);
 
-      // 跳过纯数字/符号/版本号
-      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(currentText)) continue;
-      // 跳过纯文件大小（如 11.0MB, 3.5GB）
-      if (/^\d+\.?\d*\s*(KB|MB|GB|TB)$/i.test(currentText)) continue;
-      // 跳过版本号格式（如 3.0.1987 | UK 3）
-      if (/^\d+\.\d+\.\d+/.test(currentText)) continue;
-      // 跳过服务器信息
-      if (/^Served in/i.test(currentText)) continue;
-      // 跳过 "Copyright ©" 等纯版权信息
-      if (/^Copyright/i.test(currentText)) continue;
-      // 跳过太长的文本（>200字符的通常是描述/新闻正文）
-      if (currentText.length > 200) continue;
-      // 跳过包含用户名格式的文本（模组作者名）
-      if (/^by\s+/i.test(currentText) && currentText.length < 30) continue;
+      // 检查父元素是否在排除区
+      try {
+        if (parent.closest(scanIgnoreSelector)) continue;
+      } catch (e) { /* ignore */ }
+
+      // 合并此父元素下所有直接文本子节点
+      const mergedText = [];
+      for (const child of parent.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const t = child.nodeValue.trim();
+          if (t) mergedText.push(t);
+        }
+      }
+      if (mergedText.length === 0) continue;
+
+      const fullText = mergedText.join(' ').replace(/\s+/g, ' ').trim();
+      if (!fullText || fullText.length < 2) continue;
 
       // 去重
-      if (seen.has(currentText)) continue;
+      if (seen.has(fullText)) continue;
 
-      // 判断是否已翻译：如果当前文本在反向字典的值中，说明是翻译后的中文
-      if (reverseDict.has(currentText)) continue;
+      // 跳过纯数字/符号
+      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(fullText)) continue;
+      // 跳过纯文件大小
+      if (/^\d+\.?\d*\s*(KB|MB|GB|TB|B)$/i.test(fullText)) continue;
+      // 跳过版权信息
+      if (/^Copyright\s+©/i.test(fullText)) continue;
+      if (/^©\s*\d{4}/i.test(fullText)) continue;
+      if (/All rights reserved\.?$/i.test(fullText)) continue;
+      if (/Black Tree Gaming/i.test(fullText)) continue;
+      // 跳过版本号
+      if (/^\d+\.\d+\.\d+/.test(fullText)) continue;
+      // 跳过服务器信息
+      if (/^Served in/i.test(fullText)) continue;
 
-      // 判断是否是英文字典 key（精确匹配）
-      if (dict[currentText] !== undefined) continue;
+      // 跳过已翻译的内容
+      if (dict[fullText] !== undefined) continue;
+      if (reverseDict.has(fullText)) continue;
 
-      // 判断是否匹配正则模板
+      // CJK 检测：如果 30% 以上是中文则跳过
+      const cjkCount = (fullText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+      if (cjkCount > fullText.length * 0.3) continue;
+
+      // 正则模板匹配检测
       let matchedRegexp = false;
       for (const [pattern] of REGEXP_TRANSLATIONS) {
-        if (pattern.test(currentText)) { matchedRegexp = true; break; }
+        if (pattern.test(fullText)) { matchedRegexp = true; break; }
       }
       if (matchedRegexp) continue;
 
-      seen.add(currentText);
+      seen.add(fullText);
 
-      // 判断当前文本是否可能是已翻译的中文（简单启发式：含大量CJK字符）
-      const cjkCount = (currentText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
-      const isLikelyChinese = cjkCount > currentText.length * 0.3;
-
-      if (isLikelyChinese) {
-        // 已经是中文了，跳过（可能是翻译引擎遗漏或非字典翻译的）
-        continue;
-      }
+      // 判断是否是用户名（单个短词，看起来像用户名的）
+      // 如果父元素是 <a> 且文本很短且包含大小写混合的词，可能是用户名
+      const isLink = parent.tagName.toLowerCase() === 'a';
+      if (isLink && fullText.length < 30 && /^[A-Za-z0-9_]+$/.test(fullText)) continue;
 
       results.push({
-        original: currentText,   // 页面上的原文（英文）
-        localized: '',           // 翻译列留空
+        original: fullText,
+        localized: dict[fullText] || '',
       });
     }
 
@@ -891,12 +921,11 @@
         if (text.length < 2) continue;
         if (dict[text] !== undefined) continue;
         if (seen.has(text)) continue;
-        // 跳过中文
+        if (reverseDict.has(text)) continue;
         const cjkCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
         if (cjkCount > text.length * 0.3) continue;
-        if (text.length > 200) continue;
         seen.add(text);
-        results.push({ original: text, localized: '' });
+        results.push({ original: text, localized: dict[text] || '' });
       }
     }
 
