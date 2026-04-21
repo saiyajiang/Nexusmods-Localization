@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.5
+// @version      0.1.6
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -410,8 +410,9 @@
     'Vortex help': 'Vortex 帮助',
     'Install Vortex': '安装 Vortex',
     'GIVE FEEDBACK': '提供反馈',
-    'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
     'Give Feedback': '提供反馈',
+    'Give feedback': '提供反馈',
+    'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
     'Contact': '联系',
     'MY STUFF': '我的内容',
     'Member': '会员',
@@ -1015,197 +1016,6 @@
     downloadFile(csv, 'nexusmods-translations-template.csv', 'text/csv;charset=utf-8');
   }
 
-  /** 扫描当前页面 UI 框架文本，导出为 CSV（按父元素合并，智能过滤） */
-  function scanPageTexts() {
-    const dict = window._nexusTranslator ? window._nexusTranslator.dict : Object.assign({}, DEFAULT_TRANSLATIONS, GM_getValue(CUSTOM_KEY, {}));
-
-    // 构建反向字典：中文值→Set，排除已翻译节点
-    const reverseDict = new Set();
-    for (const zh of Object.values(dict)) {
-      if (zh && typeof zh === 'string') reverseDict.add(zh);
-    }
-
-    // 扫描排除选择器（仅排除确定不该翻译的整块区域）
-    const scanIgnoreSelector = SCAN_IGNORE_SELECTORS.join(', ');
-
-    // ── 判断一个父元素是否在模组卡片内且是"用户内容" ──
-    // 模组卡片里的分类标签（Utilities, Armour 等）需要翻译
-    // 但模组名、描述、作者名不该扫
-    function isUserContent(el) {
-      // 向上查找是否在模组卡片内
-      const tile = el.closest ? el.closest('[class*="@container/mod-tile"]') : null;
-      if (!tile) return false;
-
-      // 在模组卡片内，检查当前元素的角色
-      const tag = el.tagName.toLowerCase();
-      const cls = el.className || '';
-      const clsStr = typeof cls === 'string' ? cls : '';
-
-      // 标题/模组名 — 通常是大号文字链接
-      if (tag === 'a' && el.closest('[class*="mod-tile"]') && el.querySelector('h2, h3, [class*="heading"]')) return true;
-      if (tag === 'a' && el.closest('[class*="mod-tile"]') && el.getAttribute('href') && /\/mods\//i.test(el.getAttribute('href'))) return true;
-
-      // 模组描述 — 通常是 <p> 且文本较长
-      if (tag === 'p' && el.textContent.trim().length > 60) return true;
-
-      // 作者名 — 链接到用户主页
-      if (tag === 'a' && el.getAttribute('href') && /\/users\//i.test(el.getAttribute('href'))) return true;
-
-      // 文件大小/下载量等数字
-      if (tag === 'span' && /^[\d.,]+\s*(KB|MB|GB|TB|B|k)$/i.test(el.textContent.trim())) return true;
-
-      return false;
-    }
-
-    // ── 判断是否是新闻/文章的用户内容 ──
-    function isNewsContent(el) {
-      const tag = el.tagName.toLowerCase();
-      // 新闻标题 — 链接包含 /news/
-      if (tag === 'a' && el.getAttribute('href') && /\/news\//i.test(el.getAttribute('href'))) return true;
-      // 新闻摘要 — 长段落
-      if (tag === 'p' && el.textContent.trim().length > 60) return true;
-      return false;
-    }
-
-    const seen = new Set();
-    const results = [];
-
-    // ── 核心思路：按父元素合并文本 ──
-    const visitedParents = new WeakSet();
-    const textWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => {
-        const el = node.parentElement;
-        if (!el) return NodeFilter.FILTER_REJECT;
-        const tag = el.tagName.toLowerCase();
-        if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
-        try {
-          if (el.closest(scanIgnoreSelector)) return NodeFilter.FILTER_REJECT;
-        } catch (e) { /* ignore */ }
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-
-    let textNode;
-    while ((textNode = textWalker.nextNode())) {
-      const parent = textNode.parentElement;
-      if (!parent || visitedParents.has(parent)) continue;
-      visitedParents.add(parent);
-
-      try {
-        if (parent.closest(scanIgnoreSelector)) continue;
-      } catch (e) { /* ignore */ }
-
-      // 模组卡片内的用户内容跳过
-      if (isUserContent(parent)) continue;
-      // 新闻内容跳过
-      if (isNewsContent(parent)) continue;
-
-      // 合并此父元素下所有直接文本子节点
-      const mergedText = [];
-      for (const child of parent.childNodes) {
-        if (child.nodeType === Node.TEXT_NODE) {
-          const t = child.nodeValue.trim();
-          if (t) mergedText.push(t);
-        }
-      }
-      if (mergedText.length === 0) continue;
-
-      const fullText = mergedText.join(' ').replace(/\s+/g, ' ').trim();
-      if (!fullText || fullText.length < 2) continue;
-
-      // 去重
-      if (seen.has(fullText)) continue;
-
-      // 跳过纯数字/符号
-      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(fullText)) continue;
-      // 跳过纯文件大小
-      if (/^\d+\.?\d*\s*(KB|MB|GB|TB|B)$/i.test(fullText)) continue;
-      // 跳过版权信息
-      if (/^Copyright\s+©/i.test(fullText)) continue;
-      if (/^©\s*\d{4}/i.test(fullText)) continue;
-      if (/All rights reserved\.?$/i.test(fullText)) continue;
-      if (/Black Tree Gaming/i.test(fullText)) continue;
-      // 跳过版本号
-      if (/^\d+\.\d+\.\d+/.test(fullText)) continue;
-      // 跳过服务器信息
-      if (/^Served in/i.test(fullText)) continue;
-
-      // 跳过已翻译的内容
-      if (dict[fullText] !== undefined) continue;
-      if (reverseDict.has(fullText)) continue;
-
-      // CJK 检测：如果 30% 以上是中文则跳过
-      const cjkCount = (fullText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
-      if (cjkCount > fullText.length * 0.3) continue;
-
-      // 正则模板匹配检测
-      let matchedRegexp = false;
-      for (const [pattern] of REGEXP_TRANSLATIONS) {
-        if (pattern.test(fullText)) { matchedRegexp = true; break; }
-      }
-      if (matchedRegexp) continue;
-
-      seen.add(fullText);
-
-      // 跳过用户名（<a> 内纯字母数字短文本）
-      const isLink = parent.tagName.toLowerCase() === 'a';
-      if (isLink && fullText.length < 30 && /^[A-Za-z0-9_]+$/.test(fullText)) continue;
-
-      // 跳过模组描述（长文本且在模组卡片内）
-      if (fullText.length > 100 && parent.closest('[class*="@container/mod-tile"]')) continue;
-
-      results.push({
-        original: fullText,
-        localized: dict[fullText] || '',
-      });
-    }
-
-    // 扫描可翻译属性
-    const elWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
-      acceptNode: (n) => {
-        const tag = n.tagName.toLowerCase();
-        if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
-        try {
-          if (n.closest(scanIgnoreSelector)) return NodeFilter.FILTER_REJECT;
-        } catch (e) { /* ignore */ }
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-    let el;
-    while ((el = elWalker.nextNode())) {
-      for (const attr of TRANSLATABLE_ATTRS) {
-        const val = el.getAttribute(attr);
-        if (!val || !val.trim()) continue;
-        const text = val.replace(/\s+/g, ' ').trim();
-        if (text.length < 2) continue;
-        if (dict[text] !== undefined) continue;
-        if (seen.has(text)) continue;
-        if (reverseDict.has(text)) continue;
-        const cjkCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
-        if (cjkCount > text.length * 0.3) continue;
-        seen.add(text);
-        results.push({ original: text, localized: dict[text] || '' });
-      }
-    }
-
-    const count = results.length;
-    if (count === 0) {
-      showToast('当前页面没有可翻译的文本。', 'warning');
-      return;
-    }
-
-    // 导出 CSV：原文,本地化
-    const lines = ['English,中文（翻译）'];
-    for (const item of results) {
-      const origCell = item.original.includes(',') || item.original.includes('"') ? `"${item.original.replace(/"/g, '""')}"` : item.original;
-      const locCell = item.localized.includes(',') || item.localized.includes('"') ? `"${item.localized.replace(/"/g, '""')}"` : item.localized;
-      lines.push(`${origCell},${locCell}`);
-    }
-    const csv = lines.join('\n');
-    downloadFile(csv, `nexusmods-scan-${Date.now()}.csv`, 'text/csv;charset=utf-8');
-    showToast(`已导出 ${count} 条待翻译文本到 CSV 文件。`, 'success');
-  }
-
   function resetCustom() {
     showConfirm('确定要清除所有自定义翻译词条吗？\n（内置翻译不受影响）', () => {
       GM_setValue(CUSTOM_KEY, {});
@@ -1220,7 +1030,6 @@
   GM_registerMenuCommand('📥 导入翻译词条 (CSV)', importCSV);
   GM_registerMenuCommand('📤 导出当前翻译词条', exportCSV);
   GM_registerMenuCommand('📋 导出默认词条模板', exportTemplate);
-  GM_registerMenuCommand('🔍 扫描网页', scanPageTexts);
   GM_registerMenuCommand('🗑️ 清除自定义词条', resetCustom);
 
   const dateL10nEnabled = GM_getValue(DATE_L10N_KEY, true);

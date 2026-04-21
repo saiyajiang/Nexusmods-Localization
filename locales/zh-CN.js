@@ -288,6 +288,7 @@
       'COLLECTIONS TUTORIALS': '合集教程',
       'GIVE FEEDBACK': '提供反馈',
       'Give Feedback': '提供反馈',
+      'Give feedback': '提供反馈',
       'Share your ideas, discuss them with the community, and cast your vote on feedback provided.': '分享你的想法，与社区讨论，并对提供的反馈投票。',
       'Contact': '联系',
       'MY STUFF': '我的内容',
