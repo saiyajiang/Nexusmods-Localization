@@ -214,7 +214,7 @@
     'Free downloads': '免费下载', 'No cooldown': '无冷却',
     'Download history': '下载历史',
 
-    // 首页
+    // 首页/通用UI
     'Featured mods': '精选模组', 'Featured collections': '精选合集',
     'Latest mods': '最新模组', 'Popular games': '热门游戏',
     'Trending mods': '趋势模组', 'New and updated mods': '新增与更新模组',
@@ -223,6 +223,59 @@
     'Discover the best mods': '探索最佳模组',
     'Safe to use': '安全使用', 'Totally free': '完全免费',
     'Community-driven': '社区驱动',
+    'Skip to content': '跳到内容',
+    'Media': '媒体', 'Community': '社区', 'Support': '支持',
+    'Open profile menu': '打开个人菜单',
+    'Show notifications': '显示通知', 'View messages': '查看消息',
+    'Open navigation menu': '打开导航菜单', 'Show search': '显示搜索',
+    'Add game': '添加游戏',
+    'Find out more': '了解更多',
+    'Latest news': '最新资讯',
+    'Get fast downloads with': '使用快速下载',
+    'Try Premium for free': '免费试用高级会员',
+    'auto-install collections': '自动安装合集',
+    'uncapped download speeds': '不限速下载',
+    'browse ad-free': '无广告浏览',
+    'Start free trial': '开始免费试用',
+    'Make mods.': '制作模组。',
+    'Earn rewards.': '获得奖励。',
+    'Cash payouts': '现金奖励',
+    'Free Premium': '免费高级会员',
+    'Statistics': '统计信息',
+    'Careers': '招聘',
+    'About us': '关于我们',
+    'Premium features': '高级功能',
+    'Discover': '发现',
+    'All collections': '所有合集', 'All images': '所有图片',
+    'Help': '帮助',
+    'API': 'API',
+    'Feedback': '反馈',
+    'Report a bug': '报告问题',
+    'Unban requests': '解封申请',
+    'DMCA': 'DMCA',
+    'Manage cookie settings': '管理 Cookie 设置',
+    'Discord': 'Discord',
+    'Support authors': '支持作者',
+    'Contact us': '联系我们',
+    'Support Nexus Mods': '支持 Nexus Mods',
+    'Network stats': '网络统计',
+    'Kudos': '感谢',
+    'Server info': '服务器信息',
+    'Terms of Service': '服务条款',
+    'Privacy Policy': '隐私政策',
+    'Popular mods': '热门模组',
+    'View more': '查看更多',
+    'Buy now': '立即购买',
+    'Affiliate link': '推广链接',
+    'Mods filter': '模组筛选', 'Time': '时间',
+    'Media filter': '媒体筛选',
+    'Mod options': '模组选项',
+    'Clear game filter': '清除游戏筛选',
+    'authenticated': '已认证',
+    'Desktop footer': '桌面端页脚',
+    'Breadcrumb navigation': '面包屑导航',
+    'Downloaded': '已下载',
+    'New': '新',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -716,11 +769,40 @@
     downloadFile(csv, 'nexusmods-translations-template.csv', 'text/csv;charset=utf-8');
   }
 
-  /** 扫描当前页面所有可见文本，找出未翻译的原文，导出为 CSV */
+  /** 扫描当前页面所有可见文本，导出为 CSV（原文 + 本地化两列） */
   function scanPageTexts() {
     const dict = window._nexusTranslator ? window._nexusTranslator.dict : Object.assign({}, DEFAULT_TRANSLATIONS, GM_getValue(CUSTOM_KEY, {}));
+
+    // 构建反向字典：中文→英文，用于排除已翻译的节点
+    const reverseDict = new Set();
+    for (const zh of Object.values(dict)) {
+      if (zh && typeof zh === 'string') {
+        reverseDict.add(zh);
+      }
+    }
+
+    // 扫描排除区域（比翻译时更严格：排除模组内容、新闻等）
+    const SCAN_IGNORE = IGNORE_SELECTORS.concat([
+      // 模组卡片/描述/摘要
+      '.mod-card', '.mod-tile', '.tile-content',
+      '.mod-description', '.mod-summary', '.mod-abstract',
+      '.collection-card', '.collection-summary',
+      // 新闻/文章
+      '.news-article', '.news-card', '.article-body',
+      '.news-item', '.site-news', '.news-content',
+      // 评论区
+      '.comment-body', '.comment-content',
+      // 文件信息
+      '.file-name', '.file-description',
+      // 用户生成内容
+      '.user-content', '.user-review',
+      // 侧栏推荐模组的描述
+      '.recommended-mod', '.trending-mod',
+    ]);
+    const scanIgnoreSelector = SCAN_IGNORE.join(', ');
+
     const seen = new Set();
-    const untranslated = {};
+    const results = [];  // [{original, localized}]
 
     // 遍历页面所有文本节点
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
@@ -729,9 +811,8 @@
         if (!el) return NodeFilter.FILTER_REJECT;
         const tag = el.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
-        // 跳过忽略区域
         try {
-          if (el.closest(IGNORE_SELECTORS.join(', '))) return NodeFilter.FILTER_REJECT;
+          if (el.closest(scanIgnoreSelector)) return NodeFilter.FILTER_REJECT;
         } catch (e) { /* ignore */ }
         return NodeFilter.FILTER_ACCEPT;
       }
@@ -739,35 +820,64 @@
 
     let node;
     while ((node = walker.nextNode())) {
-      const text = node.nodeValue.replace(/\s+/g, ' ').trim();
-      if (!text || text.length < 2) continue;  // 跳过太短的
-      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(text)) continue;  // 跳过纯数字/符号
+      const currentText = node.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!currentText || currentText.length < 2) continue;
 
-      // 检查是否已翻译（精确匹配）
-      if (dict[text] !== undefined) continue;
+      // 跳过纯数字/符号/版本号
+      if (/^[\d\s.,:;\/\\\-+*=!?@#$%^&(){}[\]<>~`|]+$/.test(currentText)) continue;
+      // 跳过纯文件大小（如 11.0MB, 3.5GB）
+      if (/^\d+\.?\d*\s*(KB|MB|GB|TB)$/i.test(currentText)) continue;
+      // 跳过版本号格式（如 3.0.1987 | UK 3）
+      if (/^\d+\.\d+\.\d+/.test(currentText)) continue;
+      // 跳过服务器信息
+      if (/^Served in/i.test(currentText)) continue;
+      // 跳过 "Copyright ©" 等纯版权信息
+      if (/^Copyright/i.test(currentText)) continue;
+      // 跳过太长的文本（>200字符的通常是描述/新闻正文）
+      if (currentText.length > 200) continue;
+      // 跳过包含用户名格式的文本（模组作者名）
+      if (/^by\s+/i.test(currentText) && currentText.length < 30) continue;
 
-      // 检查是否匹配正则模板
+      // 去重
+      if (seen.has(currentText)) continue;
+
+      // 判断是否已翻译：如果当前文本在反向字典的值中，说明是翻译后的中文
+      if (reverseDict.has(currentText)) continue;
+
+      // 判断是否是英文字典 key（精确匹配）
+      if (dict[currentText] !== undefined) continue;
+
+      // 判断是否匹配正则模板
       let matchedRegexp = false;
       for (const [pattern] of REGEXP_TRANSLATIONS) {
-        if (pattern.test(text)) { matchedRegexp = true; break; }
+        if (pattern.test(currentText)) { matchedRegexp = true; break; }
       }
       if (matchedRegexp) continue;
 
-      // 去重
-      if (seen.has(text)) continue;
-      seen.add(text);
+      seen.add(currentText);
 
-      // 如果已有翻译则保留翻译，否则留空
-      untranslated[text] = dict[text] || '';
+      // 判断当前文本是否可能是已翻译的中文（简单启发式：含大量CJK字符）
+      const cjkCount = (currentText.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+      const isLikelyChinese = cjkCount > currentText.length * 0.3;
+
+      if (isLikelyChinese) {
+        // 已经是中文了，跳过（可能是翻译引擎遗漏或非字典翻译的）
+        continue;
+      }
+
+      results.push({
+        original: currentText,   // 页面上的原文（英文）
+        localized: '',           // 翻译列留空
+      });
     }
 
-    // 同时扫描可翻译属性
+    // 扫描可翻译属性
     const elWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
       acceptNode: (n) => {
         const tag = n.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
         try {
-          if (n.closest(IGNORE_SELECTORS.join(', '))) return NodeFilter.FILTER_REJECT;
+          if (n.closest(scanIgnoreSelector)) return NodeFilter.FILTER_REJECT;
         } catch (e) { /* ignore */ }
         return NodeFilter.FILTER_ACCEPT;
       }
@@ -781,20 +891,31 @@
         if (text.length < 2) continue;
         if (dict[text] !== undefined) continue;
         if (seen.has(text)) continue;
+        // 跳过中文
+        const cjkCount = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+        if (cjkCount > text.length * 0.3) continue;
+        if (text.length > 200) continue;
         seen.add(text);
-        untranslated[text] = dict[text] || '';
+        results.push({ original: text, localized: '' });
       }
     }
 
-    const count = Object.keys(untranslated).length;
+    const count = results.length;
     if (count === 0) {
-      alert('当前页面所有文本均已翻译，无需补充！');
+      alert('当前页面没有可翻译的文本。');
       return;
     }
 
-    const csv = toCSV(untranslated);
-    downloadFile(csv, `nexusmods-untranslated-${Date.now()}.csv`, 'text/csv;charset=utf-8');
-    alert(`已导出 ${count} 条未翻译的原文到 CSV 文件。\n\n可以用 Excel 打开编辑，翻译后通过"导入翻译词条"导入。`);
+    // 导出 CSV：原文,本地化
+    const lines = ['English,中文（翻译）'];
+    for (const item of results) {
+      const origCell = item.original.includes(',') || item.original.includes('"') ? `"${item.original.replace(/"/g, '""')}"` : item.original;
+      const locCell = item.localized.includes(',') || item.localized.includes('"') ? `"${item.localized.replace(/"/g, '""')}"` : item.localized;
+      lines.push(`${origCell},${locCell}`);
+    }
+    const csv = lines.join('\n');
+    downloadFile(csv, `nexusmods-scan-${Date.now()}.csv`, 'text/csv;charset=utf-8');
+    alert(`已导出 ${count} 条待翻译文本到 CSV 文件。`);
   }
 
   function resetCustom() {
@@ -811,7 +932,7 @@
   GM_registerMenuCommand('📥 导入翻译词条 (CSV)', importCSV);
   GM_registerMenuCommand('📤 导出当前翻译词条', exportCSV);
   GM_registerMenuCommand('📋 导出默认词条模板', exportTemplate);
-  GM_registerMenuCommand('🔍 扫描页面未翻译原文', scanPageTexts);
+  GM_registerMenuCommand('🔍 扫描网页', scanPageTexts);
   GM_registerMenuCommand('🗑️ 清除自定义词条', resetCustom);
 
   const dateL10nEnabled = GM_getValue(DATE_L10N_KEY, true);
