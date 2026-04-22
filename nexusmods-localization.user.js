@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.1
+// @version      0.3.2
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -1407,6 +1407,63 @@
       setTimeout(() => this.translatePage(), 300);
       setTimeout(() => this.translatePage(), 1000);
       setTimeout(() => this.translatePage(), 3000);
+
+      // ═══ 导航栏巡检兜底 ═══
+      // 问题：Nexus Mods 的 Next.js 应用在某些页面（特别是 /images）上
+      // 会在油猴脚本翻译完成后重新水合/重建导航栏，导致 Search/Upload 等文本被重置。
+      // MutationObserver 虽然能检测到变化，但在高频率 DOM 操作时可能丢失事件或时序错乱。
+      // 方案：每 3 秒扫描一次导航区域，强制重译已知未翻译的 UI 文本（忽略 _processed）。
+      this._startNavPatrol();
+    }
+
+    /**
+     * 导航栏定期巡检：确保 Search/Upload 等固定 UI 文本始终被翻译
+     * 只扫描 header 导航区域，不影响性能
+     */
+    _startNavPatrol() {
+      const NAV_SELECTORS = 'header, [class*="header" i], [class*="navbar" i], [class*="nav" i], [class*="topbar" i], [class*="toolbar" i]';
+      setInterval(() => {
+        try {
+          const navAreas = document.querySelectorAll(NAV_SELECTORS);
+          for (const area of navAreas) {
+            // 收集所有未处理的（或被重置的）英文文本节点
+            const walker = document.createTreeWalker(area, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+              if (this._isIgnored(node)) continue;
+              const text = node.nodeValue.replace(/\s+/g, ' ').trim();
+              if (!text || text.length < 2 || text.length > 50) continue;
+              // 跳过已包含中文的（说明已经翻译过了）
+              if (/[\u4e00-\u9fff]/.test(text)) continue;
+              // 检查是否匹配已知词条（精确或大小写不敏感）
+              let translated = null;
+              if (text in this.dict) {
+                translated = this.dict[text];
+              } else {
+                const keyLower = text.toLowerCase();
+                for (const k of this.keys) {
+                  if (k.toLowerCase() === keyLower) {
+                    translated = this.dict[k];
+                    break;
+                  }
+                }
+              }
+              // 也检查正则
+              if (!translated) {
+                for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
+                  const m = text.match(pattern);
+                  if (m) { translated = replacer(m); break; }
+                }
+              }
+              if (translated && translated !== text) {
+                const leading = node.nodeValue.match(/^\s*/)[0];
+                const trailing = node.nodeValue.match(/\s*$/)[0];
+                node.nodeValue = leading + translated + trailing;
+              }
+            }
+          }
+        } catch (e) { /* ignore */ }
+      }, 3000);
     }
 
     /** 重新加载词条（用户导入后调用） */
