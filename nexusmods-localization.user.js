@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.3
+// @version      0.2.4
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -194,6 +194,8 @@
     [/^by\s+(.+)$/i, (m) => `由 ${m[1]}`],
     // {count}k (如 10.1k 认可数)
     [/^(\d+\.?\d*)k$/i, (m) => `${m[1]}k`],
+    // Mark all as read (N) — 通知面板按钮碎片
+    [/^Mark all as read \((\d+)\)$/i, (m) => `全部标为已读 (${m[1]})`],
   ];
 
   const DEFAULT_TRANSLATIONS = {
@@ -234,6 +236,7 @@
 
     // 上传
     'Upload': '上传', 'Upload file': '上传文件',
+    'Uploaded': '已上传',
     'Upload mod': '上传模组', 'Uploading...': '上传中…',
 
     // 分类
@@ -286,6 +289,12 @@
     'New endorsement': '新认可', 'New follower': '新关注者',
     'Mod updated': '模组已更新', 'Mark all as read': '全部标为已读',
     'No notifications': '暂无通知',
+    'No unread notifications right now': '当前没有未读通知',
+    "You're up to date": '你已全部阅读',
+    'See All': '查看全部', 'See all': '查看全部',
+    'Oh dear! Something has gone wrong!': '糟糕！出了点问题！',
+    'Try reloading the notifications.': '请尝试重新加载通知。',
+    'Notification preferences': '通知偏好',
 
     // 杂项
     'Version': '版本', 'Author': '作者', 'Authors': '作者',
@@ -633,6 +642,9 @@
 
     // 上传
     'Upload a mod': '上传模组', 'Edit mod': '编辑模组',
+    'Upload an image': '上传图片', 'Add a video': '添加视频',
+    // Upload 托盘碎片词条（HTML: UPLOAD A <strong>MOD</strong> 合并后匹配）
+    'UPLOAD A MOD': '上传模组', 'UPLOAD AN IMAGE': '上传图片', 'ADD A VIDEO': '添加视频',
     'Mod name': '模组名称', 'Summary': '摘要',
     'Version number': '版本号',
     'Publish': '发布', 'Save as draft': '保存为草稿', 'Preview': '预览',
@@ -820,12 +832,15 @@
       this._processed.add(parentEl);
 
       // 收集所有内联子元素（span, a, strong, em 等）中的文本节点
+      // 跳过忽略区域（.material-icons 等）内的文本节点
       const children = [];
       const textNodes = [];
       const walk = document.createTreeWalker(parentEl, NodeFilter.SHOW_TEXT);
       let tn;
       while ((tn = walk.nextNode())) {
         if (this._processed.has(tn)) continue;
+        // 跳过忽略区域内的文本节点（如图标字体名称）
+        if (tn.parentElement && tn.parentElement.closest(this.ignoreSelector)) continue;
         children.push(tn);
         textNodes.push(tn.nodeValue);
       }
@@ -983,19 +998,15 @@
       if (this._isIgnored(root)) return;
 
       // 第一步：合并翻译内联碎片元素（p, h3 等包含多个 span 的元素）
-      const inlineParents = root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, label, figcaption, blockquote');
+      const inlineParents = root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, label, figcaption, blockquote, button, a');
       for (const p of inlineParents) {
         if (this._isIgnored(p)) continue;
-        // 检查是否有多个内联子元素（span/a/strong 等）
-        const inlineChildren = p.querySelectorAll('span, a, strong, em, b, i, mark, small, sub, sup');
-        if (inlineChildren.length >= 2) {
-          // 检查是否包含多个文本节点
-          let textCount = 0;
-          const tw = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-          while (tw.nextNode()) textCount++;
-          if (textCount >= 2) {
-            this._translateInlineFragments(p);
-          }
+        // 检查是否包含多个文本节点（碎片化文本）
+        let textCount = 0;
+        const tw = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+        while (tw.nextNode()) textCount++;
+        if (textCount >= 2) {
+          this._translateInlineFragments(p);
         }
       }
 
