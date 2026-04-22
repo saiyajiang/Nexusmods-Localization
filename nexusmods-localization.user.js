@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.1
+// @version      0.2.2
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -451,6 +451,11 @@
     'Vortex mod manager': 'Vortex 模组管理器',
     'Collections tutorials': '合集教程',
     'Supporter images': '支持者图片',
+    'Top files': '热门文件',
+    'Recent activity': '最近活动',
+    'Mod categories': '模组分类',
+    'Mods of the month': '本月精选模组',
+    'Explore this month\'s nominated mods.': '探索本月提名的模组。',
     // 导航/通用补充（从实际 DOM 发现）
     'Upload mod': '上传模组',
     'Tracking centre': '追踪中心',
@@ -508,6 +513,16 @@
     'Show NSFW': '显示成人内容', 'Hide NSFW': '隐藏成人内容',
     'Results per page': '每页显示',
     'No mods found': '未找到模组', 'Try adjusting your search': '尝试调整搜索条件',
+
+    // 图片详情页
+    'Total views': '总浏览量',
+    'Image information': '图片信息',
+    'Added on': '添加时间',
+    'More images': '更多图片',
+    'About this image': '关于此图片',
+    'View more from uploader': '查看上传者的更多图片',
+    'See who endorsed this image': '查看谁认可了此图片',
+    'Click to endorse this image': '点击认可此图片',
 
     // 合集
     'About this collection': '关于本合集', 'Mods in this collection': '合集中的模组',
