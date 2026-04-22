@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.0
+// @version      0.3.1
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -565,6 +565,30 @@
     'Report Abuse': '举报滥用',
     'Permissions and credits': '使用权限与致谢',
     'Requirements and permissions': '前置与权限',
+    'Nexus requirements': '前置要求',
+
+    // 权限与致谢区域（v0.3.0 补充）
+    'Credits and distribution permission': '使用权限与分发许可',
+    'Other user\'s assets': '其他用户的资产',
+    'This author has not specified whether they have used assets from other authors or not': '此作者未说明是否使用了其他作者的资产',
+    'Upload permission': '上传权限',
+    'You are not allowed to upload this file to other sites under any circumstances': '在任何情况下都不允许将此文件上传到其他网站',
+    'Modification permission': '修改权限',
+    'You must get permission from me before you are allowed to modify my files to improve it': '修改我的文件以进行改进之前必须先获得我的许可',
+    'Conversion permission': '转换权限',
+    'You are not allowed to convert this file to work on other games under any circumstances': '在任何情况下都不允许将此文件转换为用于其他游戏',
+    'Asset use permission': '资产使用权限',
+    'You must get permission from me before you are allowed to use any of the assets in this file': '使用此文件中的任何资产前必须获得我的许可',
+    'Asset use permission in mods/files that are being sold': '商业模组/文件中的资产使用权限',
+    'You are not allowed to use assets from this file in any mods that are being sold, for money, on Steam Workshop or other platforms': '不允许在商业模组、Steam Workshop 或其他平台中使用此文件中的资产',
+    'Asset use permission in mods/files that earn donation points': '可获捐赠积分的模组/文件中的资产使用权限',
+    'You are allowed to earn Donation Points for your mods if they use my assets': '如果你的模组使用了我的资产，你可以获得捐赠积分',
+    'Author notes': '作者备注',
+    'This author has not provided any additional notes regarding file permissions': '此作者未提供关于文件权限的其他说明',
+    'File credits': '文件致谢',
+    'This author has not credited anyone else in this file': '此作者在此文件中未致谢任何人',
+    'Donation Points system': '捐赠积分系统',
+    'This mod is not opted-in to receive Donation Points': '此模组未启用接收捐赠积分',
     'File information': '文件信息', 'Main files': '主文件',
     'Optional files': '可选文件', 'Old versions': '旧版本',
     'Miscellaneous': '其他文件', 'FOMOD installer': 'FOMOD 安装包',
