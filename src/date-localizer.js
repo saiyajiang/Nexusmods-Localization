@@ -192,6 +192,22 @@
       return `${year}-${pad2(month)}-${pad2(day)}`;
     }
 
+    // ── 1b. "2026-04-22, 9:58PM" / "2026-04-22, 21:58" (ISO日期+时间)
+    m = text.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i
+    );
+    if (m) {
+      const year = parseInt(m[1], 10);
+      const month = parseInt(m[2], 10);
+      const day = parseInt(m[3], 10);
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4], 10), (m[6] || '').toLowerCase());
+        const timePart = formatTime(h24, m[5]);
+        return `${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
+      }
+      return `${year}-${pad2(month)}-${pad2(day)}`;
+    }
+
     // ── 2. "Uploaded at 21:21 03 Nov 2025"
     m = text.match(
       /^Uploaded at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i

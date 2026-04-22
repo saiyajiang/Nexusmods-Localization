@@ -384,17 +384,28 @@
   function watchRouteChanges(onRouteChange) {
     const _pushState = history.pushState;
     const _replaceState = history.replaceState;
+    let lastUrl = location.href;
     const debouncedChange = debounce(onRouteChange, 500);
+
+    const checkUrlChange = () => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        debouncedChange();
+      }
+    };
 
     history.pushState = function (...args) {
       _pushState.apply(this, args);
-      debouncedChange();
+      checkUrlChange();
     };
     history.replaceState = function (...args) {
       _replaceState.apply(this, args);
-      debouncedChange();
+      checkUrlChange();
     };
-    window.addEventListener('popstate', debouncedChange);
+    window.addEventListener('popstate', checkUrlChange);
+
+    // 轮询兜底：捕获 pushState/popstate 未触发的情况
+    setInterval(checkUrlChange, 1000);
   }
 
   // ─────────────────────────────────────────────
@@ -458,6 +469,11 @@
       }
 
       this.translatePage();
+
+      // 延迟重翻译（Next.js SPA 异步渲染需要更长时间）
+      setTimeout(() => this.translatePage(), 300);
+      setTimeout(() => this.translatePage(), 1000);
+      setTimeout(() => this.translatePage(), 3000);
     }
 
     translatePage() {

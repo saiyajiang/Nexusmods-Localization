@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.6
+// @version      0.2.7
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -180,6 +180,8 @@
     [/^(\d+)\s+results?$/i, (m) => `${m[1]} 个结果`],
     // Uploaded by {author}
     [/^Uploaded by\s+(.+)$/i, (m) => `上传者：${m[1]}`],
+    // Uploaded by（无作者名，碎片文本）
+    [/^Uploaded by$/i, () => '上传者：'],
     // Created by {author}
     [/^Created by\s+(.+)$/i, (m) => `创建者：${m[1]}`],
     // Updated {time} ago
@@ -236,7 +238,7 @@
 
     // 上传
     'Upload': '上传', 'Upload file': '上传文件',
-    'Uploaded': '已上传',
+    'Uploaded': '已上传', 'Uploaded by': '上传者：',
     'Upload mod': '上传模组', 'Uploading...': '上传中…',
 
     // 分类
@@ -258,7 +260,7 @@
     'Error': '错误', 'Success': '成功', 'Warning': '警告',
 
     // 内容标签
-    'Description': '描述', 'Files': '文件', 'Images': '图片',
+    'Description': '描述', 'Files': '文件', 'Images': '图片', 'images': '图片',
     'Videos': '视频', 'Articles': '文章', 'Comments': '评论',
     'Reviews': '评价', 'Changelog': '更新日志',
     'Permissions': '使用权限', 'Requirements': '前置要求',
@@ -523,6 +525,10 @@
     'Unfavourite': '取消收藏',
     'Add to favourites': '添加到收藏',
     'Remove from favourites': '从收藏中移除',
+    // Images 页面通用词条（v0.2.7 补充）
+    'Some images may be hidden': '部分图片可能被隐藏',
+    'Images may be hidden': '图片可能被隐藏',
+    'The best screen archery on the internet': '互联网上最好的游戏截图',
 
     // 模组详情
     'Requirements and permissions': '前置与权限',
@@ -770,6 +776,17 @@
       }
       return datePart;
     }
+    // ── 1b. "2026-04-22, 9:58PM" / "2026-04-22, 21:58" (ISO日期+时间)
+    m = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
+    if (m) {
+      const datePart = `${m[1]}-${m[2]}-${m[3]}`;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4],10), (m[6]||'').toLowerCase());
+        const timePart = use24h ? `${pad2(h24)}:${m[5]}` : to12Hour(h24, parseInt(m[5],10));
+        return `${datePart} ${timePart}`;
+      }
+      return datePart;
+    }
     // ── 2. "Uploaded at 21:21 03 Nov 2025"
     m = text.match(/^Uploaded at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
     if (m) {
@@ -961,7 +978,13 @@
         textNodes.push(tn.nodeValue);
       }
 
-      if (textNodes.length < 2) return; // 没有未处理的碎片节点
+      if (textNodes.length < 1) return; // 没有未处理的碎片节点
+
+      // 单个文本节点：直接翻译（不需要合并）
+      if (textNodes.length === 1) {
+        this._translateTextNode(children[0]);
+        return;
+      }
 
       // 合并所有文本节点的内容
       const mergedOriginal = textNodes.join('');
@@ -1228,10 +1251,11 @@
         // Next.js SPA 路由切换可能复用 DOM 节点并更新其文本内容，
         // 不清除 _processed 会导致这些节点被跳过
         this._processed = new WeakSet();
-        // 路由变化后延迟重新翻译
+        // 路由变化后延迟重新翻译（Next.js SPA 异步渲染需要更长时间）
         setTimeout(() => this.translatePage(), 100);
         setTimeout(() => this.translatePage(), 500);
         setTimeout(() => this.translatePage(), 1500);
+        setTimeout(() => this.translatePage(), 3000);
       };
 
       history.pushState = function (...args) {
@@ -1248,9 +1272,12 @@
       setInterval(() => {
         if (location.href !== this._url) {
           this._url = location.href;
+          // 路由变化时同样清除 _processed（与 onUrlChange 一致）
+          this._processed = new WeakSet();
           setTimeout(() => this.translatePage(), 100);
           setTimeout(() => this.translatePage(), 500);
           setTimeout(() => this.translatePage(), 1500);
+          setTimeout(() => this.translatePage(), 3000);
         }
       }, 1000);
     }

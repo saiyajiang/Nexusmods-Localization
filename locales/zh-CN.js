@@ -142,6 +142,8 @@
       'Uploading...': '上传中…',
       'Upload image': '上传图片',
       'Upload video': '上传视频',
+      'Uploaded': '已上传',
+      'Uploaded by': '上传者：',
       'Upgrade': '升级',
       'Upgrade your account to unlock all media content.': '升级账户以解锁所有媒体内容。',
 
@@ -364,6 +366,10 @@
       'Unfavourite': '取消收藏',
       'Add to favourites': '添加到收藏',
       'Remove from favourites': '从收藏中移除',
+      // Images 页面通用（v0.2.7 补充）
+      'Some images may be hidden': '部分图片可能被隐藏',
+      'Images may be hidden': '图片可能被隐藏',
+      'The best screen archery on the internet': '互联网上最好的游戏截图',
     },
 
     // ──────────────────────────────────────────
@@ -644,6 +650,10 @@
       'Unfavourite': '取消收藏',
       'Add to favourites': '添加到收藏',
       'Remove from favourites': '从收藏中移除',
+      // Images 页面通用（v0.2.7 补充）
+      'Some images may be hidden': '部分图片可能被隐藏',
+      'Images may be hidden': '图片可能被隐藏',
+      'The best screen archery on the internet': '互联网上最好的游戏截图',
     },
 
     // ──────────────────────────────────────────
