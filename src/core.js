@@ -310,7 +310,18 @@
               this._pendingNodes.add(node);
             }
           }
+          // 子节点添加/删除时，清除父元素的 _processedNodes 标记
+          // 以便碎片合并翻译能重新执行
+          if (m.target.nodeType === Node.ELEMENT_NODE) {
+            this.translator._processedNodes.delete(m.target);
+          }
         } else if (m.type === 'characterData') {
+          // 文本变化：清除已处理标记，以便重新翻译
+          this.translator._processedNodes.delete(m.target);
+          // 同时清除父元素标记，以便碎片合并重新触发
+          if (m.target.parentElement) {
+            this.translator._processedNodes.delete(m.target.parentElement);
+          }
           this._pendingNodes.add(m.target);
         } else if (m.type === 'attributes') {
           this._pendingNodes.add(m.target);

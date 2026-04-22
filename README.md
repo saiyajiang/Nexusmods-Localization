@@ -5,7 +5,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> ⚠️ **声明**：本项目代码由 AI 辅助生成，经人工审核后发布。
+> ⚠️ **声明**：本项目代码由 AI 辅助生成。
 
 ---
 

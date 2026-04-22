@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.4
+// @version      0.2.6
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -24,7 +24,7 @@
  * Nexusmods-Localization — 油猴脚本
  * @license MIT
  *
- * ⚠️  声明：本项目代码由 AI 辅助生成，经人工审核后发布。
+ * ⚠️  声明：本项目代码由 AI 辅助生成。
  *
  * 原项目参考：https://github.com/SychO3/nexusmods-chinese (v0.2.2, MIT License)
  *
@@ -481,6 +481,49 @@
     'Select': '选择',
     'Move': '移动',
 
+    // Images 页面下拉/筛选（v0.2.5 新增）
+    '24 Hours': '24 小时', '7 Days': '7 天', '14 Days': '14 天',
+    '28 Days': '28 天', '1 Year': '1 年',
+    'Most viewed': '最多浏览',
+    'Sort direction': '排序方向',
+    'Desc': '降序', 'Asc': '升序',
+    '20 Items': '20 条', '40 Items': '40 条',
+    '60 Items': '60 条', '80 Items': '80 条',
+    'Content options': '内容选项',
+    'Hide adult content': '隐藏成人内容',
+    'Show only adult content': '仅显示成人内容',
+    'Clear all': '全部清除',
+    'View results': '查看结果',
+    'Remove filter for': '移除筛选：',
+    'Filters panel': '筛选面板',
+    'Media per page': '每页媒体数',
+    'Games per page': '每页游戏数',
+    'Previous page': '上一页', 'Next page': '下一页',
+    'Pagination navigation': '分页导航',
+    'Go to previous page': '前往上一页',
+    'Go to next page': '前往下一页',
+    'Go to page': '前往第',
+    'Jump to page': '跳转到页',
+    'Bookmark': '收藏',
+    'Time range': '时间范围',
+    'From': '从', 'To': '至',
+
+    // Games 页面（v0.2.5 补充）
+    'Search game': '搜索游戏',
+
+    // Images 页面通用词条（v0.2.6 补充）
+    'Get more with Premium': '使用高级会员获取更多',
+    'Share image': '分享图片',
+    'Report image': '举报图片',
+    'Download image': '下载图片',
+    'Full size': '原尺寸',
+    'Upload images': '上传图片',
+    'Gallery': '图库',
+    'Favourite': '收藏',
+    'Unfavourite': '取消收藏',
+    'Add to favourites': '添加到收藏',
+    'Remove from favourites': '从收藏中移除',
+
     // 模组详情
     'Requirements and permissions': '前置与权限',
     'File information': '文件信息', 'Main files': '主文件',
@@ -667,7 +710,36 @@
     aug: 8, august: 8, sep: 9, september: 9, oct: 10, october: 10,
     nov: 11, november: 11, dec: 12, december: 12,
   };
-  const DATE_SELECTORS = 'time, .stat time, .uploaded-time, .last-updated time, .mod-stats time, [data-date], [data-timestamp], .notification-time, .comment-time, .review-date time, .profile-stats time';
+  // 日期容器选择器白名单：
+  //   标准 <time> 元素 + Nexus Mods 常见 class + 更宽泛的 span/small/p 容器
+  //   由于 Next.js SPA 的日期经常不在 <time> 标签内，
+  //   需要覆盖更多可能的容器类型
+  const DATE_SELECTORS = [
+    'time',
+    '.stat time',
+    '.uploaded-time',
+    '.last-updated time',
+    '.mod-stats time',
+    '[data-date]',
+    '[data-timestamp]',
+    '.notification-time',
+    '.comment-time',
+    '.review-date time',
+    '.profile-stats time',
+    // Next.js SPA 常见的日期包裹元素
+    'time[datetime]',
+    'span[datetime]',
+    'abbr[title]',          // <abbr title="ISO date">human date</abbr>
+    'small time',
+    '.date time',
+    '.timestamp',
+    '.file-updated time',
+    // 更宽泛的容器：带特定 aria 属性的时间戳
+    '[aria-label*="date" i]',
+    '[aria-label*="time" i]',
+    '[aria-label*="uploaded" i]',
+    '[aria-label*="updated" i]',
+  ].join(', ');
   const DATE_IGNORE = '.mod-title, h1.game-name, .game-title, a.mod-name, .collection-title, .mod_description_container, .prose-lexical.prose, .changelog, [data-no-date-i18n]';
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -686,6 +758,7 @@
   function convertDate(text) {
     const use24h = GM_getValue(TIME24_KEY, true); // 默认24小时制
     let m;
+    // ── 1. "15 Nov 2025" / "15 November 2025" (可选时间)
     m = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
     if (m) {
       const mo = MONTH_MAP[m[2].toLowerCase()]; if (!mo) return null;
@@ -697,15 +770,41 @@
       }
       return datePart;
     }
+    // ── 2. "Uploaded at 21:21 03 Nov 2025"
+    m = text.match(/^Uploaded at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
+    if (m) {
+      const h24 = to24Hour(parseInt(m[1],10), '');
+      const min = m[2];
+      const day = parseInt(m[3],10);
+      const mo = MONTH_MAP[m[4].toLowerCase()]; if (!mo) return null;
+      const yr = m[5];
+      const timePart = use24h ? `${pad2(h24)}:${min}` : to12Hour(h24, parseInt(min,10));
+      return `上传于 ${yr}-${pad2(mo)}-${pad2(day)} ${timePart}`;
+    }
+    // ── 3. "Updated at 21:21 03 Nov 2025"
+    m = text.match(/^Updated at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
+    if (m) {
+      const h24 = to24Hour(parseInt(m[1],10), '');
+      const min = m[2];
+      const day = parseInt(m[3],10);
+      const mo = MONTH_MAP[m[4].toLowerCase()]; if (!mo) return null;
+      const yr = m[5];
+      const timePart = use24h ? `${pad2(h24)}:${min}` : to12Hour(h24, parseInt(min,10));
+      return `更新于 ${yr}-${pad2(mo)}-${pad2(day)} ${timePart}`;
+    }
+    // ── 4. 相对时间："4 weeks ago", "2 days ago", "1 hour ago" …
     m = text.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i);
     if (m) { const u = {second:'秒',minute:'分钟',hour:'小时',day:'天',week:'周',month:'个月',year:'年'}; return `${m[1]} ${u[m[2].toLowerCase()]||m[2]}前`; }
+    // ── 5. "just now"
     if (/^just now$/i.test(text)) return '刚刚';
+    // ── 6. "Today at 14:32"
     m = text.match(/^Today at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
     if (m) {
       const h24 = to24Hour(parseInt(m[1],10), (m[3]||'').toLowerCase());
       const timePart = use24h ? `${pad2(h24)}:${m[2]}` : to12Hour(h24, parseInt(m[2],10));
       return `今天 ${timePart}`;
     }
+    // ── 7. "Yesterday at 14:32"
     m = text.match(/^Yesterday at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
     if (m) {
       const h24 = to24Hour(parseInt(m[1],10), (m[3]||'').toLowerCase());
@@ -810,6 +909,22 @@
                 const trailing = node.nodeValue.match(/\s*$/)[0];
                 node.nodeValue = leading + converted + trailing;
               }
+            } else if (!inIgnoreArea) {
+              // ── 通用日期模式匹配 ──
+              // Next.js SPA 的日期经常不在 <time> 等标准容器内，
+              // 而是直接作为 span/p 中的文本。
+              // 对短文本（≤60字符）尝试日期转换，
+              // 只处理明确的日期模式（相对时间/绝对日期），
+              // 不会误伤游戏名（如 "Nioh 3" 不匹配任何日期正则）。
+              const text = node.nodeValue.trim();
+              if (text.length > 0 && text.length <= 60 && !/[\u4e00-\u9fff]/.test(text)) {
+                const converted = convertDate(text);
+                if (converted) {
+                  const leading = node.nodeValue.match(/^\s*/)[0];
+                  const trailing = node.nodeValue.match(/\s*$/)[0];
+                  node.nodeValue = leading + converted + trailing;
+                }
+              }
             }
           } catch (e) { /* ignore */ }
         }
@@ -828,8 +943,9 @@
      * 解决方案：合并父元素内所有文本 → 整句翻译 → 将译文拆回各节点
      */
     _translateInlineFragments(parentEl) {
-      if (this._processed.has(parentEl)) return;
-      this._processed.add(parentEl);
+      // 不再用 _processed 标记父元素来跳过，因为 Next.js SPA 路由切换时
+      // 可能复用同一个父元素但更新其子文本内容。
+      // 改为：收集所有未处理的子文本节点，如果全部已处理则跳过。
 
       // 收集所有内联子元素（span, a, strong, em 等）中的文本节点
       // 跳过忽略区域（.material-icons 等）内的文本节点
@@ -845,7 +961,7 @@
         textNodes.push(tn.nodeValue);
       }
 
-      if (textNodes.length < 2) return; // 单个节点不需要合并
+      if (textNodes.length < 2) return; // 没有未处理的碎片节点
 
       // 合并所有文本节点的内容
       const mergedOriginal = textNodes.join('');
@@ -1020,11 +1136,16 @@
       }
 
       // 遍历元素节点翻译属性
+      // 注意：input 元素虽然在 IGNORE_SELECTORS 中（跳过文本内容翻译），
+      // 但其 placeholder/aria-label 等属性仍需翻译，所以这里不过滤 input
       const elWalker = document.createTreeWalker(
         root, NodeFilter.SHOW_ELEMENT,
         { acceptNode: (n) => {
           const tag = n.tagName.toLowerCase();
-          if (tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'input') return NodeFilter.FILTER_REJECT;
+          if (tag === 'script' || tag === 'style' || tag === 'textarea') return NodeFilter.FILTER_REJECT;
+          // input 的文本内容不需要翻译（已在 IGNORE_SELECTORS 中跳过），
+          // 但 placeholder 等属性仍需翻译，所以只 SKIP（继续子节点）不 REJECT
+          if (tag === 'input') return NodeFilter.FILTER_ACCEPT;
           if (this._isIgnored(n)) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;
         }}
@@ -1053,10 +1174,24 @@
                 pending.push(node);
               }
             }
+            // 子节点添加/删除时，清除父元素的 _processed 标记
+            // 以便 _translateInlineFragments 重新处理碎片合并
+            if (m.target.nodeType === Node.ELEMENT_NODE) {
+              this._processed.delete(m.target);
+            }
           } else if (m.type === 'characterData') {
             // 文本变化：重新处理（移除 processed 标记）
             this._processed.delete(m.target);
+            // 同时清除父元素的标记，以便 _translateInlineFragments 重新处理碎片
+            if (m.target.parentElement) {
+              this._processed.delete(m.target.parentElement);
+            }
             pending.push(m.target);
+          } else if (m.type === 'attributes') {
+            // 属性变化（placeholder/aria-label/title 等）：翻译该元素的属性
+            if (m.target.nodeType === Node.ELEMENT_NODE) {
+              this._translateAttributes(/** @type {Element} */ (m.target));
+            }
           }
         }
         if (pending.length > 0) {
@@ -1076,6 +1211,8 @@
         childList: true,
         subtree: true,
         characterData: true,
+        attributes: true,
+        attributeFilter: TRANSLATABLE_ATTRS,
       });
     }
 
@@ -1087,6 +1224,10 @@
       const onUrlChange = () => {
         if (location.href === this._url) return;
         this._url = location.href;
+        // 路由变化时清除已处理标记，确保新页面的节点能被重新翻译
+        // Next.js SPA 路由切换可能复用 DOM 节点并更新其文本内容，
+        // 不清除 _processed 会导致这些节点被跳过
+        this._processed = new WeakSet();
         // 路由变化后延迟重新翻译
         setTimeout(() => this.translatePage(), 100);
         setTimeout(() => this.translatePage(), 500);

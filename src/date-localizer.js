@@ -63,6 +63,19 @@
     '.review-date time',
     // 用户资料页统计日期
     '.profile-stats time',
+    // Next.js SPA 常见的日期包裹元素
+    'time[datetime]',
+    'span[datetime]',
+    'abbr[title]',          // <abbr title="ISO date">human date</abbr>
+    'small time',
+    '.date time',
+    '.timestamp',
+    '.file-updated time',
+    // 更宽泛的容器：带特定 aria 属性的时间戳
+    '[aria-label*="date" i]',
+    '[aria-label*="time" i]',
+    '[aria-label*="uploaded" i]',
+    '[aria-label*="updated" i]',
   ];
 
   // 合并为单个选择器字符串，便于 matches() 调用
@@ -113,6 +126,40 @@
     return String(n).padStart(2, '0');
   }
 
+  /**
+   * 将 24h 小时转为 12h 格式字符串，如 "7:15PM"
+   */
+  function to12Hour(h, min) {
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${pad2(min)}${ampm}`;
+  }
+
+  /**
+   * 获取当前时间格式偏好。
+   * @returns {boolean} true=24小时制, false=12小时制
+   */
+  function use24HourFormat() {
+    try {
+      // 尝试读取油猴 GM_getValue（如果在油猴环境中运行）
+      if (typeof GM_getValue === 'function') {
+        return GM_getValue('nx_time24', true);
+      }
+    } catch (e) { /* ignore */ }
+    return true; // 默认 24 小时制
+  }
+
+  /**
+   * 格式化时间部分，根据 24/12 小时制偏好返回对应格式。
+   * @param {number} h24  24小时制的小时数
+   * @param {number|string} min  分钟
+   * @returns {string}
+   */
+  function formatTime(h24, min) {
+    const minNum = typeof min === 'string' ? parseInt(min, 10) : min;
+    return use24HourFormat() ? `${pad2(h24)}:${pad2(minNum)}` : to12Hour(h24, minNum);
+  }
+
   // ─────────────────────────────────────────────
   //  日期字符串解析 & 格式转换
   // ─────────────────────────────────────────────
@@ -138,9 +185,9 @@
 
       if (m[4] !== undefined) {
         // 带时间
-        const hour = to24Hour(parseInt(m[4], 10), (m[6] || '').toLowerCase());
-        const min = m[5];
-        return `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${min}`;
+        const h24 = to24Hour(parseInt(m[4], 10), (m[6] || '').toLowerCase());
+        const timePart = formatTime(h24, m[5]);
+        return `${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
       }
       return `${year}-${pad2(month)}-${pad2(day)}`;
     }
@@ -150,13 +197,14 @@
       /^Uploaded at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i
     );
     if (m) {
-      const hour = m[1], min = m[2];
+      const h24 = to24Hour(parseInt(m[1], 10), '');
       const day = parseInt(m[3], 10);
       const monthKey = m[4].toLowerCase();
       const year = m[5];
       const month = MONTH_MAP[monthKey];
       if (!month) return null;
-      return `上传于 ${year}-${pad2(month)}-${pad2(day)} ${hour}:${min}`;
+      const timePart = formatTime(h24, m[2]);
+      return `上传于 ${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
     }
 
     // ── 3. "Updated at 21:21 03 Nov 2025"
@@ -164,13 +212,14 @@
       /^Updated at\s+(\d{1,2}):(\d{2})\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i
     );
     if (m) {
-      const hour = m[1], min = m[2];
+      const h24 = to24Hour(parseInt(m[1], 10), '');
       const day = parseInt(m[3], 10);
       const monthKey = m[4].toLowerCase();
       const year = m[5];
       const month = MONTH_MAP[monthKey];
       if (!month) return null;
-      return `更新于 ${year}-${pad2(month)}-${pad2(day)} ${hour}:${min}`;
+      const timePart = formatTime(h24, m[2]);
+      return `更新于 ${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
     }
 
     // ── 4. 相对时间："4 weeks ago", "2 days ago", "1 hour ago" …
@@ -191,15 +240,17 @@
     // ── 6. "Today at 14:32"
     m = text.match(/^Today at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
     if (m) {
-      const hour = to24Hour(parseInt(m[1], 10), (m[3] || '').toLowerCase());
-      return `今天 ${pad2(hour)}:${m[2]}`;
+      const h24 = to24Hour(parseInt(m[1], 10), (m[3] || '').toLowerCase());
+      const timePart = formatTime(h24, m[2]);
+      return `今天 ${timePart}`;
     }
 
     // ── 7. "Yesterday at 14:32"
     m = text.match(/^Yesterday at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
     if (m) {
-      const hour = to24Hour(parseInt(m[1], 10), (m[3] || '').toLowerCase());
-      return `昨天 ${pad2(hour)}:${m[2]}`;
+      const h24 = to24Hour(parseInt(m[1], 10), (m[3] || '').toLowerCase());
+      const timePart = formatTime(h24, m[2]);
+      return `昨天 ${timePart}`;
     }
 
     // ── 8. "Time range: 7 Days" / "Time range: 30 Days"
@@ -250,6 +301,28 @@
     if (converted && converted !== raw.trim()) {
       node.nodeValue = raw.replace(raw.trim(), converted);
     }
+  }
+
+  /**
+   * 尝试对不在日期白名单容器内的短文本节点进行日期转换。
+   * Next.js SPA 的日期经常不在 <time> 等标准容器内，
+   * 而是直接作为 span/p 中的文本。
+   * 只处理明确的日期模式，不会误伤游戏名。
+   * @param {Text} node
+   * @returns {boolean} 是否成功转换
+   */
+  function tryConvertGenericTextNode(node) {
+    const raw = node.nodeValue;
+    if (!raw || !raw.trim()) return false;
+    const text = raw.trim();
+    // 仅处理短文本（≤60字符）且不含中文的纯英文文本
+    if (text.length === 0 || text.length > 60 || /[\u4e00-\u9fff]/.test(text)) return false;
+    const converted = convertDateString(text);
+    if (converted && converted !== text) {
+      node.nodeValue = raw.replace(text, converted);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -343,6 +416,14 @@
      * @returns {string|null}
      */
     convert: convertDateString,
+
+    /**
+     * 尝试对不在日期白名单容器内的短文本节点进行日期转换。
+     * 供翻译引擎在翻译文本节点时调用，作为日期白名单的补充。
+     * @param {Text} node
+     * @returns {boolean} 是否成功转换
+     */
+    tryConvertGenericTextNode,
 
     /**
      * 允许外部代码追加自定义日期容器选择器。
