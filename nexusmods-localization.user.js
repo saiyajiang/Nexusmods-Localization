@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.2
+// @version      0.2.3
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -45,6 +45,7 @@
   const CUSTOM_KEY = 'nx_custom_translations';  // 仅用户自定义的词条
   const DATE_L10N_KEY = 'nx_date_l10n';
   const LANG_KEY = 'nx_lang';  // 语言偏好：'zh-CN' | 'en' | 'auto'
+  const TIME24_KEY = 'nx_time24';  // 时间格式：true=24小时制, false=12小时制(AM/PM)
 
   // ═══════════════════════════════════════════════
   //  语言检测与选择
@@ -494,7 +495,9 @@
     'Download this file': '下载此文件', 'Delete this file': '删除此文件',
     'View changelog': '查看更新日志',
     'Sticky': '置顶帖', 'Pinned post': '置顶帖子',
+    'Add comment': '添加评论', 'Add a new comment': '添加新评论',
     'Post your comment': '发表评论', 'Show replies': '显示回复',
+    'Use emoticons': '使用表情', 'Submit Comment': '提交评论',
     'Hide replies': '隐藏回复', 'Reply': '回复', 'Quote': '引用',
     'Edit comment': '编辑评论', 'Delete comment': '删除评论',
     'Report comment': '举报评论', 'No comments yet': '暂无评论',
@@ -661,22 +664,42 @@
     if (ampm === 'am') return h === 12 ? 0 : h;
     return h === 12 ? 12 : h + 12;
   }
+  /** 将 24h 小时转为 12h 格式字符串，如 "7:15PM" */
+  function to12Hour(h, min) {
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${pad2(min)}${ampm}`;
+  }
 
   function convertDate(text) {
+    const use24h = GM_getValue(TIME24_KEY, true); // 默认24小时制
     let m;
     m = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
     if (m) {
       const mo = MONTH_MAP[m[2].toLowerCase()]; if (!mo) return null;
-      if (m[4] !== undefined) return `${m[3]}-${pad2(mo)}-${pad2(parseInt(m[1],10))} ${pad2(to24Hour(parseInt(m[4],10),(m[6]||'').toLowerCase()))}:${m[5]}`;
-      return `${m[3]}-${pad2(mo)}-${pad2(parseInt(m[1],10))}`;
+      const datePart = `${m[3]}-${pad2(mo)}-${pad2(parseInt(m[1],10))}`;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4],10), (m[6]||'').toLowerCase());
+        const timePart = use24h ? `${pad2(h24)}:${m[5]}` : to12Hour(h24, parseInt(m[5],10));
+        return `${datePart} ${timePart}`;
+      }
+      return datePart;
     }
     m = text.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i);
     if (m) { const u = {second:'秒',minute:'分钟',hour:'小时',day:'天',week:'周',month:'个月',year:'年'}; return `${m[1]} ${u[m[2].toLowerCase()]||m[2]}前`; }
     if (/^just now$/i.test(text)) return '刚刚';
     m = text.match(/^Today at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
-    if (m) return `今天 ${pad2(to24Hour(parseInt(m[1],10),(m[3]||'').toLowerCase()))}:${m[2]}`;
+    if (m) {
+      const h24 = to24Hour(parseInt(m[1],10), (m[3]||'').toLowerCase());
+      const timePart = use24h ? `${pad2(h24)}:${m[2]}` : to12Hour(h24, parseInt(m[2],10));
+      return `今天 ${timePart}`;
+    }
     m = text.match(/^Yesterday at\s+(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
-    if (m) return `昨天 ${pad2(to24Hour(parseInt(m[1],10),(m[3]||'').toLowerCase()))}:${m[2]}`;
+    if (m) {
+      const h24 = to24Hour(parseInt(m[1],10), (m[3]||'').toLowerCase());
+      const timePart = use24h ? `${pad2(h24)}:${m[2]}` : to12Hour(h24, parseInt(m[2],10));
+      return `昨天 ${timePart}`;
+    }
     return null;
   }
 
@@ -1236,8 +1259,13 @@
   GM_registerMenuCommand('🗑️ 清除自定义词条', resetCustom);
 
   const dateL10nEnabled = GM_getValue(DATE_L10N_KEY, true);
+  const time24Enabled = GM_getValue(TIME24_KEY, true);
   GM_registerMenuCommand(`📅 日期本地化：${dateL10nEnabled ? '开启 ✓' : '关闭'}`, () => {
     GM_setValue(DATE_L10N_KEY, !dateL10nEnabled);
+    location.reload();
+  });
+  GM_registerMenuCommand(`🕐 时间格式：${time24Enabled ? '24小时制 ✓' : '12小时制(AM/PM)'}`, () => {
+    GM_setValue(TIME24_KEY, !time24Enabled);
     location.reload();
   });
 
