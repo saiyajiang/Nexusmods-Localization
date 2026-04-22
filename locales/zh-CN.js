@@ -204,6 +204,14 @@
       'Credits': '致谢',
       'About this mod': '关于本模组',
       'About this collection': '关于本合集',
+      'About this image': '关于此图片',
+      'Image information': '图片信息',
+      'Added on': '添加时间',
+      'Total views': '总浏览量',
+      'More images': '更多图片',
+      'View more from uploader': '查看上传者的更多图片',
+      'See who endorsed this image': '查看谁认可了此图片',
+      'Click to endorse this image': '点击认可此图片',
 
       // === 表单 / 输入 ===
       'Email': '邮箱',
@@ -304,6 +312,11 @@
       'Vortex mod manager': 'Vortex 模组管理器',
       'Collections tutorials': '合集教程',
       'Supporter images': '支持者图片',
+      'Top files': '热门文件',
+      'Recent activity': '最近活动',
+      'Mod categories': '模组分类',
+      'Mods of the month': '本月精选模组',
+      'Explore this month\'s nominated mods.': '探索本月提名的模组。',
       // 搜索弹窗
       'All content': '全部内容',
       'Search mods, games, collections, images & videos': '搜索模组、游戏、合集、图片和视频',
