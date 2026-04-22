@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.8
+// @version      0.2.9
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -216,6 +216,9 @@
     [/^Tag this mod$/i, () => '标记此模组'],
     // content blocking settings
     [/^content blocking settings$/i, () => '内容屏蔽设置'],
+    // {Game Name} images (标题中的图片后缀)
+    [/^(.+)\s+images$/i, (m) => `${m[1]} 图片`],
+    // {count} results (纯数字+results，非正则已有但保险)
   ];
 
   const DEFAULT_TRANSLATIONS = {
@@ -948,7 +951,41 @@
       const original = node.nodeValue;
       if (!original || !original.trim()) return;
 
-      const key = original.replace(/\s+/g, ' ').trim();
+      // ═══ 优先执行日期本地化 ═══
+      // 原因：如果先翻译成中文（如 "Added on Apr 22, 2026" → "添加于..."），
+      // 后面的中文检测会跳过日期转换，导致 24h 格式丢失
+      if (GM_getValue(DATE_L10N_KEY, true)) {
+        const el = node.parentElement;
+        if (el) {
+          try {
+            const inDateContainer = el.closest(DATE_SELECTORS) !== null;
+            const inIgnoreArea = el.closest(DATE_IGNORE) !== null;
+            const rawText = original.replace(/\s+/g, ' ').trim();
+
+            if (inDateContainer && !inIgnoreArea) {
+              const converted = convertDate(rawText);
+              if (converted) {
+                const leading = original.match(/^\s*/)[0];
+                const trailing = original.match(/\s*$/)[0];
+                node.nodeValue = leading + converted + trailing;
+              }
+            } else if (!inIgnoreArea) {
+              // 通用日期匹配（不在白名单容器内的短文本）
+              if (rawText.length > 0 && rawText.length <= 60 && !/[\u4e00-\u9fff]/.test(rawText)) {
+                const converted = convertDate(rawText);
+                if (converted) {
+                  const leading = original.match(/^\s*/)[0];
+                  const trailing = original.match(/\s*$/)[0];
+                  node.nodeValue = leading + converted + trailing;
+                }
+              }
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      // ═══ 然后执行翻译 ═══
+      const key = node.nodeValue.replace(/\s+/g, ' ').trim();
       let translated = null;
 
       // 1. 精确匹配（字典）
@@ -981,44 +1018,9 @@
       }
 
       if (translated && translated !== key) {
-        const leading = original.match(/^\s*/)[0];
-        const trailing = original.match(/\s*$/)[0];
+        const leading = node.nodeValue.match(/^\s*/)[0];
+        const trailing = node.nodeValue.match(/\s*$/)[0];
         node.nodeValue = leading + translated + trailing;
-      }
-
-      // 日期本地化
-      if (GM_getValue(DATE_L10N_KEY, true)) {
-        const el = node.parentElement;
-        if (el) {
-          try {
-            const inDateContainer = el.closest(DATE_SELECTORS) !== null;
-            const inIgnoreArea = el.closest(DATE_IGNORE) !== null;
-            if (inDateContainer && !inIgnoreArea) {
-              const converted = convertDate(node.nodeValue.trim());
-              if (converted) {
-                const leading = node.nodeValue.match(/^\s*/)[0];
-                const trailing = node.nodeValue.match(/\s*$/)[0];
-                node.nodeValue = leading + converted + trailing;
-              }
-            } else if (!inIgnoreArea) {
-              // ── 通用日期模式匹配 ──
-              // Next.js SPA 的日期经常不在 <time> 等标准容器内，
-              // 而是直接作为 span/p 中的文本。
-              // 对短文本（≤60字符）尝试日期转换，
-              // 只处理明确的日期模式（相对时间/绝对日期），
-              // 不会误伤游戏名（如 "Nioh 3" 不匹配任何日期正则）。
-              const text = node.nodeValue.trim();
-              if (text.length > 0 && text.length <= 60 && !/[\u4e00-\u9fff]/.test(text)) {
-                const converted = convertDate(text);
-                if (converted) {
-                  const leading = node.nodeValue.match(/^\s*/)[0];
-                  const trailing = node.nodeValue.match(/\s*$/)[0];
-                  node.nodeValue = leading + converted + trailing;
-                }
-              }
-            }
-          } catch (e) { /* ignore */ }
-        }
       }
 
       this._processed.add(node);
