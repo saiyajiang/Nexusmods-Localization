@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.0
+// @version      0.2.1
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -127,6 +127,10 @@
     '.changelog',
     '[data-no-i18n]',
     'script', 'style', 'textarea', 'input',
+    // Material Icons 字体图标：DOM 文本是图标名（如 close/menu），不能翻译否则字体渲染失败
+    '.material-icons', '.material-icons-outlined', '.material-icons-round',
+    '.material-icons-sharp', '.material-icons-two-tone', '.material-symbols-outlined',
+    '.material-symbols-rounded', '.material-symbols-sharp',
   ];
   // 扫描专用排除区域（只排除确定不该翻译的整块区域）
   const SCAN_IGNORE_SELECTORS = [
