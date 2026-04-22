@@ -92,7 +92,10 @@
       'Save changes': '保存更改',
       'Delete': '删除',
       'Edit': '编辑',
-      'Close': '关闭',
+      // 注意：不翻译 'Close' 纯文本，避免关闭按钮 ✕ 被替换成"关闭"文字
+      'Close dialog': '关闭对话框', 'Close menu': '关闭菜单',
+      'Close panel': '关闭面板', 'Close modal': '关闭弹窗',
+      'Close notification': '关闭通知', 'Close search': '关闭搜索',
       'Back': '返回',
       'Next': '下一步',
       'Previous': '上一步',

@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.1.9
+// @version      0.2.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -44,6 +44,24 @@
   const STORAGE_KEY = 'nx_translations';       // 所有翻译词条 { english: chinese }
   const CUSTOM_KEY = 'nx_custom_translations';  // 仅用户自定义的词条
   const DATE_L10N_KEY = 'nx_date_l10n';
+  const LANG_KEY = 'nx_lang';  // 语言偏好：'zh-CN' | 'en' | 'auto'
+
+  // ═══════════════════════════════════════════════
+  //  语言检测与选择
+  //  auto  → 检测 navigator.language，zh 开头用中文，否则英文（不翻译）
+  //  zh-CN → 强制简体中文
+  //  en    → 强制英文（跳过所有翻译）
+  // ═══════════════════════════════════════════════
+  function resolveLanguage() {
+    const pref = GM_getValue(LANG_KEY, 'auto');
+    if (pref === 'zh-CN') return 'zh-CN';
+    if (pref === 'en') return 'en';
+    // auto: 检测浏览器/系统语言
+    const nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    return nav.startsWith('zh') ? 'zh-CN' : 'en';
+  }
+
+  const CURRENT_LANG = resolveLanguage();
 
   // ═══════════════════════════════════════════════
   //  Toast 通知（替代 alert/confirm）
@@ -189,7 +207,12 @@
     'Search': '搜索', 'Search mods': '搜索模组',
     'Submit': '提交', 'Cancel': '取消', 'Confirm': '确认',
     'Save': '保存', 'Save changes': '保存更改',
-    'Delete': '删除', 'Edit': '编辑', 'Close': '关闭',
+    'Delete': '删除', 'Edit': '编辑',
+    // 注意：不翻译 'Close' 纯文本，避免关闭按钮 ✕ 被替换成"关闭"文字
+    // aria-label="Close" 由 _translateAttributes 的 CLOSE_ARIA_LABELS 白名单处理
+    'Close dialog': '关闭对话框', 'Close menu': '关闭菜单',
+    'Close panel': '关闭面板', 'Close modal': '关闭弹窗',
+    'Close notification': '关闭通知', 'Close search': '关闭搜索',
     'Back': '返回', 'Next': '下一步', 'Previous': '上一步',
     'Continue': '继续', 'Done': '完成', 'Apply': '应用',
     'Reset': '重置', 'Clear': '清除', 'Filter': '筛选', 'Sort by': '排序方式',
@@ -643,6 +666,10 @@
   // ═══════════════════════════════════════════════
   class Translator {
     constructor() {
+      // 语言判断：英文模式下整个翻译器静默
+      this.lang = CURRENT_LANG;
+      this.enabled = (this.lang === 'zh-CN');
+
       // 合并：默认词条 + 用户自定义词条
       const custom = GM_getValue(CUSTOM_KEY, {});
       this.dict = Object.assign({}, DEFAULT_TRANSLATIONS, custom);
@@ -657,7 +684,11 @@
       this._observer = null;
       this._url = location.href;
 
-      console.log(`[NexusL10n] 初始化完成，${this.keys.length} 条翻译词条`);
+      if (this.enabled) {
+        console.log(`[NexusL10n] 初始化完成，${this.keys.length} 条翻译词条，语言：${this.lang}`);
+      } else {
+        console.log(`[NexusL10n] 语言：${this.lang}，翻译已禁用`);
+      }
     }
 
     /** 检查节点是否在忽略区域内 */
@@ -880,8 +911,26 @@
         const val = el.getAttribute(attr);
         if (!val) continue;
         const key = val.replace(/\s+/g, ' ').trim();
+
+        // 精确匹配
         if (key in this.dict) {
           el.setAttribute(attr, this.dict[key]);
+          continue;
+        }
+
+        // 对 aria-label="Close" 单独处理：翻译属性为"关闭"，但不影响文本节点
+        if (attr === 'aria-label' && key.toLowerCase() === 'close') {
+          el.setAttribute(attr, '关闭');
+          continue;
+        }
+
+        // case-insensitive fallback
+        const keyLower = key.toLowerCase();
+        for (const k of this.keys) {
+          if (k.toLowerCase() === keyLower) {
+            el.setAttribute(attr, this.dict[k]);
+            break;
+          }
         }
       }
     }
@@ -1014,6 +1063,8 @@
 
     /** 启动 */
     start() {
+      if (!this.enabled) return; // 英文模式，不翻译
+
       // 立即翻译一次
       this.translatePage();
 
@@ -1029,6 +1080,7 @@
 
     /** 重新加载词条（用户导入后调用） */
     reload() {
+      if (!this.enabled) return;
       const custom = GM_getValue(CUSTOM_KEY, {});
       this.dict = Object.assign({}, DEFAULT_TRANSLATIONS, custom);
       this.keys = Object.keys(this.dict).sort((a, b) => b.length - a.length);
@@ -1144,6 +1196,21 @@
   // ═══════════════════════════════════════════════
   //  油猴菜单
   // ═══════════════════════════════════════════════
+
+  // 语言切换菜单
+  const langPref = GM_getValue(LANG_KEY, 'auto');
+  const langLabels = { 'auto': '自动', 'zh-CN': '简体中文', 'en': 'English' };
+  const langCurrent = langLabels[langPref] || '自动';
+  GM_registerMenuCommand(`🌐 界面语言：${langCurrent}`, () => {
+    // 循环切换：auto → zh-CN → en → auto
+    const cycle = { 'auto': 'zh-CN', 'zh-CN': 'en', 'en': 'auto' };
+    const next = cycle[langPref] || 'auto';
+    GM_setValue(LANG_KEY, next);
+    const nextLabel = langLabels[next];
+    showToast(`已切换为「${nextLabel}」，正在刷新…`, 'info', 1200);
+    setTimeout(() => location.reload(), 1200);
+  });
+
   GM_registerMenuCommand('📥 导入翻译词条 (CSV)', importCSV);
   GM_registerMenuCommand('📤 导出当前翻译词条', exportCSV);
   GM_registerMenuCommand('📋 导出默认词条模板', exportTemplate);
