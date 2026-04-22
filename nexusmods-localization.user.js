@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.9
+// @version      0.3.0
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -904,6 +904,16 @@
       const h24 = to24Hour(parseInt(m[1],10), (m[3]||'').toLowerCase());
       const timePart = use24h ? `${pad2(h24)}:${m[2]}` : to12Hour(h24, parseInt(m[2],10));
       return `昨天 ${timePart}`;
+    }
+    // ── 8. 纯时间格式："9:59PM", "11:30 AM", "21:50", "14:05"
+    //     处理 <time> 内与日期分开的独立时间文本节点
+    m = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ampm = (m[4] || '').toLowerCase();
+      const h24 = to24Hour(h, ampm);
+      return use24h ? `${pad2(h24)}:${m[2]}` : to12Hour(h24, min);
     }
     return null;
   }

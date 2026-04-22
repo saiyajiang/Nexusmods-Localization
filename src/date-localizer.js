@@ -323,6 +323,17 @@
     m = text.match(/^Time range:\s*(\d+)\s*Days?$/i);
     if (m) return `时间范围：${m[1]} 天`;
 
+    // ── 9. 纯时间格式："9:59PM", "11:30 AM", "21:50", "14:05"
+    //     处理 <time> 内与日期分开的独立时间文本节点
+    m = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ampm = (m[4] || '').toLowerCase();
+      const h24 = to24Hour(h, ampm);
+      return formatTime(h24, min);
+    }
+
     return null; // 无法识别，不做任何转换
   }
 
