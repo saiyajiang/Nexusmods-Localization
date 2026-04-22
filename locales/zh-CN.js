@@ -406,6 +406,18 @@
     // ──────────────────────────────────────────
     mod_detail: {
       'About this mod': '关于本模组',
+      'Locations': '位置',
+      'Original File': '原始文件',
+      'Add media': '添加媒体',
+      'Track': '追踪',
+      'Vote': '投票',
+      'Manual': '手动',
+      'Original upload': '原始上传',
+      'Tags for this mod': '此模组的标签',
+      'Tag this mod': '标记此模组',
+      'You haven\'t downloaded this mod yet': '你尚未下载此模组',
+      'Report Abuse': '举报滥用',
+      'Permissions and credits': '使用权限与致谢',
       'Requirements and permissions': '前置与权限',
       'File information': '文件信息',
       'Main files': '主文件',
@@ -627,6 +639,13 @@
       'Page': '页',
       'Go': '跳转',
       'Search game': '搜索游戏',
+      // Images 分类（v0.2.8 补充）
+      'Character Presets': '角色预设',
+      'Cityscape': '城市景观',
+      'Misc': '杂项',
+      'Official': '官方',
+      'Wallpapers': '壁纸',
+      // 游戏类型
       'Action': '动作', 'Adventure': '冒险', 'ARPG': 'ARPG',
       'Dungeon crawl': '地牢探索', 'Fighting': '格斗',
       'FPS': 'FPS', 'Hack and Slash': '砍杀', 'Horror': '恐怖',

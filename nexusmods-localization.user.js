@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.2.7
+// @version      0.2.8
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -198,6 +198,24 @@
     [/^(\d+\.?\d*)k$/i, (m) => `${m[1]}k`],
     // Mark all as read (N) — 通知面板按钮碎片
     [/^Mark all as read \((\d+)\)$/i, (m) => `全部标为已读 (${m[1]})`],
+    // {count} items
+    [/^(\d+)\s+items?$/i, (m) => `${m[1]} 个条目`],
+    // Category: {name}
+    [/^Category:\s*(.+)$/i, (m) => `分类：${m[1]}`],
+    // You haven't downloaded this mod yet
+    [/^You haven't downloaded this mod yet$/i, () => '你尚未下载此模组'],
+    // Report Abuse
+    [/^Report Abuse$/i, () => '举报滥用'],
+    // Permissions and credits
+    [/^Permissions and credits$/i, () => '使用权限与致谢'],
+    // Original upload
+    [/^Original upload$/i, () => '原始上传'],
+    // Tags for this mod
+    [/^Tags for this mod$/i, () => '此模组的标签'],
+    // Tag this mod
+    [/^Tag this mod$/i, () => '标记此模组'],
+    // content blocking settings
+    [/^content blocking settings$/i, () => '内容屏蔽设置'],
   ];
 
   const DEFAULT_TRANSLATIONS = {
@@ -530,7 +548,19 @@
     'Images may be hidden': '图片可能被隐藏',
     'The best screen archery on the internet': '互联网上最好的游戏截图',
 
-    // 模组详情
+    // 模组详情（v0.2.8 补充）
+    'Locations': '位置',
+    'Original File': '原始文件',
+    'Add media': '添加媒体',
+    'Track': '追踪',
+    'Vote': '投票',
+    'Manual': '手动',
+    'Original upload': '原始上传',
+    'Tags for this mod': '此模组的标签',
+    'Tag this mod': '标记此模组',
+    'You haven\'t downloaded this mod yet': '你尚未下载此模组',
+    'Report Abuse': '举报滥用',
+    'Permissions and credits': '使用权限与致谢',
     'Requirements and permissions': '前置与权限',
     'File information': '文件信息', 'Main files': '主文件',
     'Optional files': '可选文件', 'Old versions': '旧版本',
@@ -627,6 +657,12 @@
     'Sort': '排序',
     'Page': '页',
     'Go': '跳转',
+    // Images 分类（v0.2.8 补充）
+    'Character Presets': '角色预设',
+    'Cityscape': '城市景观',
+    'Misc': '杂项',
+    'Official': '官方',
+    'Wallpapers': '壁纸',
     // 游戏类型
     'Action': '动作', 'Adventure': '冒险', 'ARPG': 'ARPG',
     'Dungeon crawl': '地牢探索', 'Fighting': '格斗',
@@ -745,6 +781,20 @@
     '[aria-label*="time" i]',
     '[aria-label*="uploaded" i]',
     '[aria-label*="updated" i]',
+    // Images / 通用页面更宽泛的容器
+    '[class*="date" i]',
+    '[class*="time" i]',
+    '[class*="uploaded" i]',
+    '[class*="updated" i]',
+    '.image-stats',
+    '.image-meta',
+    '.mod-info',
+    '.file-info',
+    // 更通用的 span/p 容器（images 页面日期常见）
+    'span.text-sm',
+    'p.text-sm',
+    'span.text-xs',
+    'p.text-xs',
   ].join(', ');
   const DATE_IGNORE = '.mod-title, h1.game-name, .game-title, a.mod-name, .collection-title, .mod_description_container, .prose-lexical.prose, .changelog, [data-no-date-i18n]';
 
@@ -808,6 +858,30 @@
       const yr = m[5];
       const timePart = use24h ? `${pad2(h24)}:${min}` : to12Hour(h24, parseInt(min,10));
       return `更新于 ${yr}-${pad2(mo)}-${pad2(day)} ${timePart}`;
+    }
+    // ── 3b. "Apr 22, 2026" / "April 22, 2026" (美式日期，可选时间)
+    m = text.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
+    if (m) {
+      const mo = MONTH_MAP[m[1].toLowerCase()]; if (!mo) return null;
+      const datePart = `${m[3]}-${pad2(mo)}-${pad2(parseInt(m[2],10))}`;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4],10), (m[6]||'').toLowerCase());
+        const timePart = use24h ? `${pad2(h24)}:${m[5]}` : to12Hour(h24, parseInt(m[5],10));
+        return `${datePart} ${timePart}`;
+      }
+      return datePart;
+    }
+    // ── 3c. "Added on Apr 22, 2026, 9:58PM" (带前缀的美式日期)
+    m = text.match(/^Added on\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i);
+    if (m) {
+      const mo = MONTH_MAP[m[1].toLowerCase()]; if (!mo) return null;
+      const datePart = `${m[3]}-${pad2(mo)}-${pad2(parseInt(m[2],10))}`;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4],10), (m[6]||'').toLowerCase());
+        const timePart = use24h ? `${pad2(h24)}:${m[5]}` : to12Hour(h24, parseInt(m[5],10));
+        return `添加于 ${datePart} ${timePart}`;
+      }
+      return `添加于 ${datePart}`;
     }
     // ── 4. 相对时间："4 weeks ago", "2 days ago", "1 hour ago" …
     m = text.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i);

@@ -76,6 +76,20 @@
     '[aria-label*="time" i]',
     '[aria-label*="uploaded" i]',
     '[aria-label*="updated" i]',
+    // Images / 通用页面更宽泛的容器
+    '[class*="date" i]',
+    '[class*="time" i]',
+    '[class*="uploaded" i]',
+    '[class*="updated" i]',
+    '.image-stats',
+    '.image-meta',
+    '.mod-info',
+    '.file-info',
+    // 更通用的 span/p 容器（images 页面日期常见）
+    'span.text-sm',
+    'p.text-sm',
+    'span.text-xs',
+    'p.text-xs',
   ];
 
   // 合并为单个选择器字符串，便于 matches() 调用
@@ -236,6 +250,42 @@
       if (!month) return null;
       const timePart = formatTime(h24, m[2]);
       return `更新于 ${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
+    }
+
+    // ── 3b. "Apr 22, 2026" / "April 22, 2026" (美式日期，可选时间)
+    m = text.match(
+      /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i
+    );
+    if (m) {
+      const monthKey = m[1].toLowerCase();
+      const day = parseInt(m[2], 10);
+      const year = parseInt(m[3], 10);
+      const month = MONTH_MAP[monthKey];
+      if (!month) return null;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4], 10), (m[6] || '').toLowerCase());
+        const timePart = formatTime(h24, m[5]);
+        return `${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
+      }
+      return `${year}-${pad2(month)}-${pad2(day)}`;
+    }
+
+    // ── 3c. "Added on Apr 22, 2026, 9:58PM" (带前缀的美式日期)
+    m = text.match(
+      /^Added on\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})(?:,?\s*(\d{1,2}):(\d{2})\s*(am|pm)?)?$/i
+    );
+    if (m) {
+      const monthKey = m[1].toLowerCase();
+      const day = parseInt(m[2], 10);
+      const year = parseInt(m[3], 10);
+      const month = MONTH_MAP[monthKey];
+      if (!month) return null;
+      if (m[4] !== undefined) {
+        const h24 = to24Hour(parseInt(m[4], 10), (m[6] || '').toLowerCase());
+        const timePart = formatTime(h24, m[5]);
+        return `添加于 ${year}-${pad2(month)}-${pad2(day)} ${timePart}`;
+      }
+      return `添加于 ${year}-${pad2(month)}-${pad2(day)}`;
     }
 
     // ── 4. 相对时间："4 weeks ago", "2 days ago", "1 hour ago" …
