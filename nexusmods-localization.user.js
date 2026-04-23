@@ -2,7 +2,7 @@
 // @name         Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.2
+// @version      0.3.3
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
 // @author       saiyajiang
@@ -176,8 +176,8 @@
     [/^(\d+)\s+views?$/i, (m) => `${m[1]} 次浏览`],
     // {count} followers
     [/^(\d+)\s+followers?$/i, (m) => `${m[1]} 个关注者`],
-    // {count} results
-    [/^(\d+)\s+results?$/i, (m) => `${m[1]} 个结果`],
+    // {count} results（支持逗号分隔：104,844 results）
+    [/^([\d,]+)\s+results?$/i, (m) => `${m[1]} 个结果`],
     // Uploaded by {author}
     [/^Uploaded by\s+(.+)$/i, (m) => `上传者：${m[1]}`],
     // Uploaded by（无作者名，碎片文本）
@@ -219,6 +219,10 @@
     // {Game Name} images (标题中的图片后缀)
     [/^(.+)\s+images$/i, (m) => `${m[1]} 图片`],
     // {count} results (纯数字+results，非正则已有但保险)
+    // Some {type} may be hidden based on your {settings link}
+    // 匹配中英混合版本（碎片部分翻译后）和纯英文版
+    [/^Some\s+(.+)\s+may\s+be\s+hidden\s+based\s+on\s+your\s+(.+)$/i,
+      (m) => `部分${m[1]}可能根据你的${m[2]}被隐藏`],
   ];
 
   const DEFAULT_TRANSLATIONS = {
@@ -548,8 +552,13 @@
     'Remove from favourites': '从收藏中移除',
     // Images 页面通用词条（v0.2.7 补充）
     'Some images may be hidden': '部分图片可能被隐藏',
+    'Some mods may be hidden': '部分模组可能被隐藏',
     'Images may be hidden': '图片可能被隐藏',
     'The best screen archery on the internet': '互联网上最好的游戏截图',
+
+    // VORTEX 广告区（v0.3.3 补充）
+    'VORTEX': 'VORTEX',
+    'The powerful open-source mod manager from Nexus Mods.': '来自 Nexus Mods 的强大开源模组管理器。',
 
     // 模组详情（v0.2.8 补充）
     'Locations': '位置',
