@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         Nexusmods Localization
+// @name:en      Nexusmods Localization
 // @name:zh-CN   Nexus Mods 本地化
+// @name:zh-TW   Nexus Mods 本地化（繁體）
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.3
+// @version      0.3.4
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
+// @description:en  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
+// @description:zh-TW  Nexus Mods 網站本地化，內建簡體中文，支援 Excel 自訂翻譯
 // @author       saiyajiang
 // @license      MIT
 // @homepageURL  https://github.com/saiyajiang/Nexusmods-Localization
@@ -17,7 +21,6 @@
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @run-at       document-idle
-// @antifeature  adult-content 此脚本运行于包含成人内容的网站（Nexus Mods）
 // ==/UserScript==
 
 /**
@@ -952,6 +955,47 @@
   }
 
   // ═══════════════════════════════════════════════
+  //  浏览器标签页标题（document.title）本地化
+  //  说明：document.title 位于 <head>，MutationObserver 只监听 document.body，
+  //        所以标签页标题不会被正文翻译逻辑覆盖，这里单独处理。
+  //  策略：按分隔符切成片段，只翻译「整段命中词典」的片段，
+  //        模组名 / 游戏名等用户生成内容保持原样，避免误伤。
+  // ═══════════════════════════════════════════════
+
+  // 标题分隔符： -  –  —  |  :  （含全角）
+  const TITLE_SPLIT_RE = /(\s+[-–—|:：]\s+)/;
+
+  // 标题专用补充词条（词典里没有、但标签页标题常见的说法）
+  const TITLE_TRANSLATIONS = {
+    'Mods': '模组',
+    'Files': '文件',
+    'Images': '图片',
+    'Videos': '视频',
+    'Bugs': '问题反馈',
+    'Posts': '帖子',
+    'Discussions': '讨论',
+    'Changelog': '更新日志',
+    'Description': '描述',
+    'Requirements': '前置要求',
+    'Comments': '评论',
+    'Reviews': '评价',
+    'Settings': '设置',
+    'Search results': '搜索结果',
+    'Login': '登录',
+    'Register': '注册',
+    'My Mods': '我的模组',
+    'Profile': '主页',
+    'Wiki': '维基',
+    'Forum': '论坛',
+  };
+
+  // 标题专用正则（在词典匹配之后执行）
+  const TITLE_REGEXP = [
+    // "SkyUI at Skyrim Special Edition" → "SkyUI - Skyrim Special Edition"
+    [/^(.+?)\s+at\s+(.+)$/i, (m) => `${m[1]} - ${m[2]}`],
+  ];
+
+  // ═══════════════════════════════════════════════
   //  核心：翻译引擎
   // ═══════════════════════════════════════════════
   class Translator {
@@ -972,6 +1016,8 @@
 
       this._processed = new WeakSet();
       this._observer = null;
+      this._titleObserver = null;
+      this._lastTitleOut = null;
       this._url = location.href;
 
       if (this.enabled) {
@@ -1303,6 +1349,87 @@
       this.translateSubtree(document.body);
     }
 
+    /** 词典查找：精确 → 大小写不敏感 → 正则 */
+    _lookup(text) {
+      if (text in this.dict) return this.dict[text];
+      const lower = text.toLowerCase();
+      for (const k of this.keys) {
+        if (k.toLowerCase() === lower) return this.dict[k];
+      }
+      for (const [pattern, replacer] of REGEXP_TRANSLATIONS) {
+        const m = text.match(pattern);
+        if (m) return replacer(m);
+      }
+      return null;
+    }
+
+    /**
+     * 翻译标签页标题（document.title）
+     * 只翻译「整段命中词典」的片段，模组名/游戏名等用户生成内容原样保留。
+     */
+    _translateTitleText(raw) {
+      const whole = this._lookup(raw.trim());
+      if (whole) return whole;
+
+      const parts = String(raw).split(TITLE_SPLIT_RE);
+      let changed = false;
+      for (let i = 0; i < parts.length; i += 2) { // 偶数位是内容，奇数位是分隔符
+        const seg = parts[i];
+        const lead = seg.match(/^\s*/)[0];
+        const tail = seg.match(/\s*$/)[0];
+        const core = seg.trim();
+        if (!core) continue;
+        if (/[\u4e00-\u9fff]/.test(core)) continue; // 已含中文，跳过
+
+        let out = this._lookup(core);
+        if (!out && core in TITLE_TRANSLATIONS) out = TITLE_TRANSLATIONS[core];
+        if (!out) {
+          const lower = core.toLowerCase();
+          for (const k of Object.keys(TITLE_TRANSLATIONS)) {
+            if (k.toLowerCase() === lower) { out = TITLE_TRANSLATIONS[k]; break; }
+          }
+        }
+        if (!out) {
+          for (const [pattern, replacer] of TITLE_REGEXP) {
+            const m = core.match(pattern);
+            if (m) { out = replacer(m); break; }
+          }
+        }
+        if (out && out !== core) {
+          parts[i] = lead + out + tail;
+          changed = true;
+        }
+      }
+      return changed ? parts.join('') : raw;
+    }
+
+    /** 应用标签页标题翻译（幂等：无变化则不动） */
+    translateTitle() {
+      if (!this.enabled) return;
+      const cur = document.title || '';
+      if (!cur || cur === this._lastTitleOut) return;
+      const out = this._translateTitleText(cur);
+      this._lastTitleOut = out;
+      if (out !== cur) document.title = out;
+    }
+
+    /** 监听 <title> 变化：Next.js 会在 SPA 路由切换后重写标题 */
+    watchTitle() {
+      if (this._titleObserver) return;
+      const kick = () => {
+        this.translateTitle();
+        setTimeout(() => this.translateTitle(), 500);
+        setTimeout(() => this.translateTitle(), 1500);
+      };
+      this._titleObserver = new MutationObserver(kick);
+      this._titleObserver.observe(document.head, {
+        childList: true, subtree: true, characterData: true,
+      });
+      kick();
+      // 兜底轮询：部分路由只改 document.title，不会触发 head 的 mutation
+      setInterval(() => this.translateTitle(), 1000);
+    }
+
     /** 启动 MutationObserver 监听 */
     startObserver() {
       if (this._observer) this._observer.disconnect();
@@ -1407,10 +1534,12 @@
 
       // 立即翻译一次
       this.translatePage();
+      this.translateTitle();
 
       // 启动监听
       this.startObserver();
       this.watchRoute();
+      this.watchTitle();
 
       // 延迟补翻（等异步内容加载）
       setTimeout(() => this.translatePage(), 300);
@@ -1482,7 +1611,9 @@
       this.dict = Object.assign({}, DEFAULT_TRANSLATIONS, custom);
       this.keys = Object.keys(this.dict).sort((a, b) => b.length - a.length);
       this._processed = new WeakSet();
+      this._lastTitleOut = null;
       this.translatePage();
+      this.translateTitle();
     }
   }
 
