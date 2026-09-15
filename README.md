@@ -3,7 +3,13 @@
 > 为 [Nexus Mods](https://www.nexusmods.com/) 网站提供界面本地化的油猴脚本。  
 > 内置简体中文，支持通过标准接口添加任意语言包。
 
+[![Greasy Fork](https://img.shields.io/badge/Greasy%20Fork-安装脚本-2e8b57?logo=greasyfork)](https://greasyfork.org/zh-CN/scripts/574978)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## 安装地址
+
+- **Greasy Fork**（推荐，支持自动更新）：<https://greasyfork.org/zh-CN/scripts/574978>
+- **GitHub 源码**：<https://github.com/saiyajiang/Nexusmods-Localization>
 
 > ⚠️ **声明**：本项目代码由 AI 辅助生成。
 
@@ -29,7 +35,11 @@
 
 ### 一键安装（推荐）
 
-点击以下链接，油猴会弹出安装确认页：
+从 Greasy Fork 安装（推荐，可自动接收更新）：
+
+<https://greasyfork.org/zh-CN/scripts/574978>
+
+或直接点击以下链接，油猴会弹出安装确认页：
 
 ```
 https://raw.githubusercontent.com/saiyajiang/Nexusmods-Localization/main/nexusmods-localization.user.js
