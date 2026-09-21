@@ -4,7 +4,7 @@
 // @name:zh-CN   Nexus Mods 本地化
 // @name:zh-TW   Nexus Mods 本地化（繁體）
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.4
+// @version      0.3.5
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:en  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
@@ -146,6 +146,19 @@
     '.comment-body', '.comment-content',
   ];
   const TRANSLATABLE_ATTRS = ['placeholder', 'title', 'aria-label', 'data-tooltip'];
+
+  // 碎片合并的「阻断元素」
+  // 背景：_translateInlineFragments 会把父元素内所有文本节点合并后整句翻译，
+  //       再把译文塞进第一个非空节点、清空其余节点。
+  //       若父元素内存在链接 / 徽章 / 换行等语义元素，清空操作会丢掉它们的文本，
+  //       造成「链接变空白」「计数徽章错位」等排版损坏（帖子/评论区尤其明显）。
+  // 处理：父元素内含以下任一元素时，禁止跨节点合并，退回逐节点翻译。
+  const MERGE_BLOCKER_SELECTORS = [
+    'a', 'button', 'br', 'img', 'svg', 'time', 'input', 'select', 'textarea',
+    '[href]', '[role]', '[aria-label]', '[onclick]',
+    '[class*="badge" i]', '[class*="count" i]', '[class*="pill" i]',
+    '[class*="chip" i]', '[class*="tag" i]', '[class*="icon" i]',
+  ].join(', ');
 
   // ═══════════════════════════════════════════════
   //  内置默认翻译词条
@@ -1129,6 +1142,13 @@
       // 可能复用同一个父元素但更新其子文本内容。
       // 改为：收集所有未处理的子文本节点，如果全部已处理则跳过。
 
+      // 结构保护：父元素内若含链接、按钮、徽章、换行等语义元素，
+      // 合并译文会清空这些元素里的文本，导致链接变空白、计数错位。
+      // 这种情况直接放弃合并，交给逐节点翻译处理。
+      try {
+        if (parentEl.querySelector(MERGE_BLOCKER_SELECTORS)) return;
+      } catch (e) { /* 选择器异常时按原逻辑处理 */ }
+
       // 收集所有内联子元素（span, a, strong, em 等）中的文本节点
       // 跳过忽略区域（.material-icons 等）内的文本节点
       const children = [];
@@ -1197,7 +1217,11 @@
       }
 
       // 5. 如果仍然未翻译且含中文，替换残留的英文连接词
-      if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)) {
+      //    保护：过长或含链接/@提及的文本视为用户生成内容（评论、帖子正文），
+      //    不做连接词替换，避免把正文里的 the/a/and 等词删掉或改写。
+      if (translated === null && /[\u4e00-\u9fff]/.test(mergedKey)
+          && mergedKey.length <= 160
+          && !/(https?:\/\/|www\.|@\w+)/.test(mergedKey)) {
         const connectorMap = [
           [/\bto\b/gi, '以'],
           [/\bget\b/gi, '获得'],
