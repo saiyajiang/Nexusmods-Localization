@@ -4,7 +4,7 @@
 // @name:zh-CN   Nexus Mods 本地化
 // @name:zh-TW   Nexus Mods 本地化（繁體）
 // @namespace    https://github.com/saiyajiang/Nexusmods-Localization
-// @version      0.3.5
+// @version      0.3.6
 // @description  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:en  Localization support for Nexus Mods. Built-in Simplified Chinese. Supports Excel-based custom translation.
 // @description:zh-CN  Nexus Mods 网站本地化，内置简体中文，支持 Excel 自定义翻译
@@ -21,6 +21,7 @@
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @run-at       document-idle
+// @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFc0lEQVR42u2bTYwUVRDH//963dPTs7PLx9nAargImiAe0JC4eiIhHowEMHpUE01EL16M4MwsEk+c8GDCzZgoGtALBC4uhBOXVROXhJgYdk9cNAKz7Ex3v1ceenZZ1l12PpyZnh0q6dP0VL/6VdXrqtfvEavIVAneKxUkAKAnn3qmDveaKg44h11CjFmFEiAyJAqoIegUd0UwQ+JiAPmJn/75+0qblstDRqiCKIOswM1XxvcGOZatw8s5j3l1inqicIpMixAIPIJCRInWjOBKPdLySOnWdS1BUIaS0P8AUAUXf1g4sb1sRI75Ps1CzcEpLAgSEAyAKOCgUCFMmBfEsVrr3Ofh8dnySlu55HkAdz7ZtjlfNF8FIQ/fn3eqCkfCYIBFFZaEFEaE9QX9vla17236Yu4fACChqUfLEwYEcgU5ExTl8HzVRpreMNDGN4w0CmC+aqOgKIdzBTkDNmwGYKZKE96TlavJx6Xt5ZFR7/35e0lEMpe1Sa4jCABJmqjmokLRe7b64hiCym8/T5UmPAJAtbRtjx+Y69YqnYOQG8f4FemgInDGUOO63VuszE2bUgmyz2z+OszJjnqsKhyMia7NdKBTaBiIFzvd4b905xvendz+tC/4VR19xcb0/CopoRSNY4fdYhRH8p7JWYViSMQqNO+ZnFEcEYXuV1WQGBohAVWFQvd7BHfVE0VbRU6z1FTbH2kX9BOQ1Gbu8kQ42nZ5a+Pm7jM+0gTT7uinQash7BQQ4ajXdmNDgoWtzTlo/i9APECkeW+1oj+6D7gYrZphFeq1bDwJ2BgMtyB49wKYH0uNWs0DagEK7I0LiH78CMgVAQqg7n/S7wAKorPvIPnjSuNe21KB5HX0Ui1sBXOFdW/19ryZDvTcUSBoAkKL+mH81tNrcWydvU/i1DtreWhZJHjPvQEArUFYT38jAtqeZDsGQD4Y2KMA0ANc0jqEdfUTnb6/e1f2ygMIuYOngXr1gQf7uYDS26dlD0Lvn5wxCF5/sD9iTuhxS+L1L/bWgCBmSACsBSE/2tN06A2AR+X4SgjnPwS8oGcQevOU9d73yyfG109D69X1i6uBAaAO7vZMCxCOIDj4ZQrBuQFPgcVm5eIxmJ2vwn/hbcAlqbFrQrDwnn8LDLc0Ojx0daGuJ3MA/RDR+Q/A/Bi83YfWgWAAdTA7Dzxc8g76HMBcEdH5o0h++W4p3NueMwYOgDooBQiKiM61AGFDlcLq0lBuBcKG6wVUU89mCELvO5DFoigjEPrTgmUIQv8a8YxA6O9yTAYg9P9LcJ8heMiCrIAAIO0Oe7BSlJ29ACsjYfrbtG7ockWYrc0Q6tLPZ36A+PIkNKp2vO4/WAAWiyWkELppeHYBpBR6YnyGAQxLHfAYwGMAjwH0WzqrBNU1LsWq63ZLRYxmU39nAAjkRtJCZa01y8Uyll4bg+y2/sZfq5PjruV9QqqA8SFP7AGb+Jbnbt+A3v+7sRKs/de/rNrgwolxbW+bnALRfWgTBQv9sOXBdV9/errEc07vtbdXkEAw1lzoqGsvBbqoXwg4p/dEoTOBx/SYSctBYJu72p4Eu6NfAZfarDNC8DLJXpXemem3SILgZbHE2VpiI0MMzXZpQ7CW2MgSZ+WUnb1pHa6FeaFT2I1uvFPYMC+0DtdO2dmbQ39kRqZKE16xMjcd1d3JsGAMoPEGzv44LBgT1d3JYmVueunQlJYmPFSu2oXJ8R/CMXNw/k4SgfQ3yskxBRSq8cgmL7dw154LP7t1CKUJw8rVZOgPTg790dklg0ioKqglSHh8thwnus9avWQMayN5MQWfIgOQEEKg4FNG8mKMYc1avRQnui88PlvWEmS58cAaOT5Mx+f/BddtRf6SZXuwAAAAAElFTkSuQmCC
 // ==/UserScript==
 
 /**
